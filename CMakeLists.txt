@@ -5,13 +5,14 @@ IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release)
 ENDIF()
 
-set(CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 20)
 
 project(MVSLAM2)
 
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Pangolin REQUIRED)
+find_package(dataset_reader REQUIRED)
 
 file(GLOB_RECURSE srcs CONFIGURE_DEPENDS src/*.cpp src/*.cc)
 file(GLOB_RECURSE headers CONFIGURE_DEPENDS inc/*.h)
@@ -25,9 +26,11 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 target_link_libraries(${PROJECT_NAME} PUBLIC
     ${Pangolin_LIBRARIES}
     ${OpenCV_LIBS}
+    dataset_reader::dataset_reader
+    ceres
 )
 
 # Build examples
 add_executable(test
-test/test.cc)
+./test/test.cc)
 target_link_libraries(test ${PROJECT_NAME})
