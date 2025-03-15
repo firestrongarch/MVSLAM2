@@ -6,9 +6,15 @@ namespace MVSLAM2 {
 struct Frame {
     using Ptr = std::shared_ptr<Frame>;
 
-    cv::Mat left_image_;
-    cv::Mat right_image_;
-    double timestamp_;
+    const cv::Mat left_image_;
+    const cv::Mat right_image_;
+    const double timestamp_;
+
+    std::vector<cv::KeyPoint> left_kps_;
+    cv::Mat left_des_;
+    std::vector<cv::KeyPoint> right_kps_;
+    cv::Mat right_des_;
+
     cv::Mat relative_pose_;
 
     void SetPose(const cv::Mat& pose) {

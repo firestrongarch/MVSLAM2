@@ -25,6 +25,7 @@ int main (int argc, char** argv){
         });
 
         using namespace std::chrono;
+        cv::waitKey(1);
         std::this_thread::sleep_for(30ms);
     }
 }
