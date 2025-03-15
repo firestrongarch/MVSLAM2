@@ -20,6 +20,8 @@ struct Frame {
     void SetPose(const cv::Mat& pose) {
         relative_pose_ = pose;
     }
+
+    static Ptr last_frame_;
 };
 
 }

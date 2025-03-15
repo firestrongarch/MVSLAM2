@@ -39,6 +39,7 @@ void System::Run(Frame frame) {
     cv::imshow("left", out1);
     cv::imshow("right", out2);
 
+    Frame::last_frame_ = std::make_shared<Frame>(frame);
 }
 
 }
