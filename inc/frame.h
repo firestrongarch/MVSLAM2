@@ -1,6 +1,8 @@
 #pragma once
 #include <memory>
 #include <opencv2/core.hpp>
+#include <opencv2/core/types.hpp>
+#include <vector>
 
 namespace MVSLAM2 {
 struct Frame {
@@ -9,16 +11,19 @@ struct Frame {
     const cv::Mat left_image_;
     const cv::Mat right_image_;
     const double timestamp_;
+    const int id;
 
     std::vector<cv::KeyPoint> left_kps_;
     cv::Mat left_des_;
     std::vector<cv::KeyPoint> right_kps_;
     cv::Mat right_des_;
 
-    cv::Mat relative_pose_;
+    std::vector<cv::Point3d> points3d_; // 世界坐标系
+    std::vector<cv::Point2d> points2d_; // 左图像素坐标系
+    cv::Mat pose_ = cv::Mat::eye(4, 4, CV_64F);
 
     void SetPose(const cv::Mat& pose) {
-        relative_pose_ = pose;
+        pose_ = pose;
     }
 
     static Ptr last_frame_;
