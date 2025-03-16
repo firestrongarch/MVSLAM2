@@ -25,14 +25,4 @@ public:
     static std::unique_ptr<Tracker> Create(const std::string& type);
 };
 
-class ORBTracker : public Tracker {
-public:
-    bool Track(Frame& frame) override;
-    bool Configure(const TrackerParams& params) override;
-
-private:
-    TrackerParams params_;
-    void DrawFeatures(cv::Mat& image, const std::vector<cv::KeyPoint>& kpts);
-};
-
 }

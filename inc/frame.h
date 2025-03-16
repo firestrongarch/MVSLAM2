@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <opencv2/core.hpp>
+#include <opencv2/core/cvstd_wrapper.hpp>
 #include <opencv2/core/types.hpp>
 #include <vector>
 
@@ -15,16 +16,13 @@ struct Frame {
 
     std::vector<cv::KeyPoint> left_kps_;
     cv::Mat left_des_;
-    std::vector<cv::KeyPoint> right_kps_;
-    cv::Mat right_des_;
+    // std::vector<cv::KeyPoint> right_kps_;
+    // cv::Mat right_des_;
 
     std::vector<cv::Point3d> points3d_; // 世界坐标系
     std::vector<cv::Point2d> points2d_; // 左图像素坐标系
     cv::Mat pose_ = cv::Mat::eye(4, 4, CV_64F);
-
-    void SetPose(const cv::Mat& pose) {
-        pose_ = pose;
-    }
+    cv::Mat relative_pose_ = cv::Mat::eye(4, 4, CV_64F);
 
     static Ptr last_frame_;
 };

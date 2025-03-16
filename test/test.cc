@@ -3,6 +3,7 @@
 #include "dataset_reader/kitti_dataset.hpp"
 #include <Poco/Environment.h>
 #include <Poco/Path.h>
+#include <memory>
 #include <opencv2/opencv.hpp>
 #include <thread>
 
@@ -26,12 +27,12 @@ int main (int argc, char** argv){
         imLeft = cv::imread(frame->left_image_path, cv::IMREAD_GRAYSCALE);  // 直接读取为灰度图
         imRight = cv::imread(frame->right_image_path, cv::IMREAD_GRAYSCALE);  // 直接读取为灰度图
 
-        SLAM.Run({
+        SLAM.Run(std::make_shared<MVSLAM2::Frame>(MVSLAM2::Frame{
             .left_image_ = imLeft,
             .right_image_ = imRight,
             .timestamp_ = frame->timestamp,
             .id = id++
-        });
+        }));
 
         using namespace std::chrono;
         cv::waitKey(1);
