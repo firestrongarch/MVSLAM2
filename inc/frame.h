@@ -1,6 +1,5 @@
 #pragma once
 #include <memory>
-#include <opencv2/core.hpp>
 #include <opencv2/core/cvstd_wrapper.hpp>
 #include <opencv2/core/types.hpp>
 #include <vector>
