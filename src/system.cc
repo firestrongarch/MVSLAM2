@@ -19,36 +19,47 @@ void System::Run(Frame::Ptr frame) {
         return;
     }
 
-    std::cout << "detect 3D Point "<< std::endl;
-    // 循环显示3d点
-    for (size_t i = 0; i < Frame::last_frame_->left_kps_.size(); ++i) {
-        MapPoint::Ptr map_point = Frame::last_frame_->left_kps_[i].map_point.lock();
-        std::cout << "3D Point " << i << ": " << *map_point << std::endl;
+    // 跟踪上一帧
+    auto detector = cv::ORB::create(2000);
+    std::vector<cv::KeyPoint> kps1;
+    for (auto kp : Frame::last_frame_->left_kps_) {
+        kps1.push_back(kp);
     }
-    // // 跟踪上一帧
-    // auto detector = cv::ORB::create(2000);
-    // detector->detectAndCompute(frame->left_image_, cv::noArray(), frame->left_kps_, frame->left_des_);
+    cv::Mat des1;
+    detector->compute(Frame::last_frame_->left_image_, kps1, des1);
 
-    // cv::BFMatcher matcher(cv::NORM_HAMMING);
-    // std::vector<cv::DMatch> matches;
-    // matcher.match(frame->left_des_, Frame::last_frame_->left_des_, matches);
-    
-    // // 清空当前帧的2D和3D点
-    // frame->points2d_.clear();
-    // frame->points3d_.clear();
-    
-    // // 保存匹配的特征点和对应的3D点
-    // for (auto match : matches) {
-    //     // 确保索引有效
-    //     if (match.trainIdx >= Frame::last_frame_->points3d_.size()) {
-    //         continue;
-    //     }
-           
-    //     // 当前帧的2D点
-    //     frame->points2d_.push_back(frame->left_kps_[match.queryIdx].pt);
-    //     // 对应的上一帧3D点
-    //     frame->points3d_.push_back(Frame::last_frame_->points3d_[match.trainIdx]);
-    // }
+    std::vector<cv::KeyPoint> kps2;
+    cv::Mat des2;
+    detector->detectAndCompute(frame->left_image_, cv::noArray(), kps2, des2);
+
+    cv::BFMatcher matcher(cv::NORM_HAMMING);
+    std::vector<cv::DMatch> matches;
+    matcher.match(des1, des2, matches);
+
+    std::cout << "Matches: " << matches.size() << std::endl;
+    // 匹配点对筛选
+    double min_dist = 10000, max_dist = 0;
+    // 找出所有匹配之间的最小距离和最大距离, 即是最相似的和最不相似的两组点之间的距离
+    for (int i = 0; i < des1.rows; i++) {
+        double dist = matches[i].distance;
+        if (dist < min_dist) min_dist = dist;
+        if (dist > max_dist) max_dist = dist;
+    }
+
+    // 当描述子之间的距离大于两倍的最小距离时,即认为匹配有误.但有时候最小距离会非常小,设置一个经验值30作为下限.
+    std::vector<cv::DMatch> good_matches;
+    for (int i = 0; i < des1.rows; i++) {
+        if (matches[i].distance <= std::max(2 * min_dist, 30.0)) {
+            good_matches.push_back(matches[i]);
+        }
+    }
+    std::cout << "GoodMatches: " << good_matches.size() << std::endl;
+
+    // 保存匹配的特征点和对应的3D点
+    for (const auto& match : good_matches) {
+        MapPoint::Ptr map_point = Frame::last_frame_->left_kps_[match.queryIdx].map_point.lock();
+        std::cout << "3D Point " << match.queryIdx << ": " << *map_point << std::endl;
+    }
 
     // frame->pose_ = frame->relative_pose_ * Frame::last_frame_->pose_;
     // // 计算相机位姿
