@@ -25,4 +25,11 @@ void Frame::Pixel2Camera(const std::vector<cv::Point2d>& pts1, const std::vector
     }
 }
 
+cv::Point2d Frame::World2Pixel(const cv::Point3d& p3d) {
+    cv::Mat p3d_mat = (cv::Mat_<double>(4, 1) << p3d.x, p3d.y, p3d.z, 1);
+    cv::Mat P = pose_(cv::Range(0,3), cv::Range::all());
+    cv::Mat p2d_mat = K * P * p3d_mat;
+    return cv::Point2d(p2d_mat.at<double>(0) / p2d_mat.at<double>(2), p2d_mat.at<double>(1) / p2d_mat.at<double>(2));
+}
+
 }

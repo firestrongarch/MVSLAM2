@@ -22,34 +22,41 @@ public:
     void Run(Frame::Ptr frame);
 
     void Triangulate(const Frame::Ptr frame) {
-        std::vector<cv::KeyPoint> left_kps;
-        cv::Mat left_des;
-        std::vector<cv::KeyPoint> right_kps;
-        cv::Mat right_des;
+        std::vector<cv::KeyPoint> kps1;
+        cv::Mat des1;
+        std::vector<cv::KeyPoint> kps2;
+        cv::Mat des2;
 
         auto detector = cv::ORB::create(2000);
-        detector->detectAndCompute(frame->left_image_, cv::noArray(), left_kps, left_des);
-        detector->detectAndCompute(frame->right_image_, cv::noArray(), right_kps, right_des);
+        detector->detectAndCompute(frame->left_image_, cv::noArray(), kps1, des1);
+        detector->detectAndCompute(frame->right_image_, cv::noArray(), kps2, des2);
     
         cv::BFMatcher matcher(cv::NORM_HAMMING);
         std::vector<cv::DMatch> matches;
-        matcher.match(left_des, right_des, matches);
+        matcher.match(des1, des2, matches);
 
-        // 对匹配点进行筛选和排序
+        // 匹配点对筛选
+        double min_dist = 10000, max_dist = 0;
+        // 找出所有匹配之间的最小距离和最大距离, 即是最相似的和最不相似的两组点之间的距离
+        for (int i = 0; i < des1.rows; i++) {
+            double dist = matches[i].distance;
+            if (dist < min_dist) min_dist = dist;
+            if (dist > max_dist) max_dist = dist;
+        }
+        // 当描述子之间的距离大于两倍的最小距离时,即认为匹配有误.但有时候最小距离会非常小,设置一个经验值30作为下限.
         std::vector<cv::DMatch> good_matches;
-        for (const auto& m : matches) {
-            if (m.distance < 50.0) {  // 根据描述子距离筛选
-                good_matches.push_back(m);
+        for (int i = 0; i < des1.rows; i++) {
+            if (matches[i].distance <= std::max(2 * min_dist, 30.0)) {
+                good_matches.push_back(matches[i]);
             }
         }
-        matches = good_matches;
+
 
         std::vector<cv::Point2d> pts1, pts2;
-        for (const auto& match : matches) {
-            pts1.push_back(left_kps[match.queryIdx].pt);
-            pts2.push_back(right_kps[match.trainIdx].pt);
+        for (const auto& match : good_matches) {
+            pts1.push_back(kps1[match.queryIdx].pt);
+            pts2.push_back(kps2[match.trainIdx].pt);
         }
-
         // 转换到相机坐标系
         std::vector<cv::Point2d> pts1_cam, pts2_cam;
         frame->Pixel2Camera(pts1, pts2, pts1_cam, pts2_cam);

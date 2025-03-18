@@ -48,6 +48,7 @@ struct Frame {
     static void Pixel2Camera(const std::vector<cv::Point2d>& pts1, const std::vector<cv::Point2d>& pts2,
                       std::vector<cv::Point2d>& pts1_cam, std::vector<cv::Point2d>& pts2_cam);
 
+    cv::Point2d World2Pixel(const cv::Point3d& p3d);
 };
 
 }
