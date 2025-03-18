@@ -10,7 +10,7 @@ set(CMAKE_CXX_STANDARD 20)
 project(MVSLAM2)
 
 find_package(OpenCV REQUIRED)
-find_package(Eigen3 REQUIRED)
+find_package(Ceres REQUIRED)
 find_package(Pangolin REQUIRED)
 find_package(dataset_reader REQUIRED)
 

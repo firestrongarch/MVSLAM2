@@ -183,5 +183,52 @@ void Tracker::Pnp(Frame::Ptr frame) {
     frame->pose_ = pose;
 }
 
+void CeresTracker::Pnp(Frame::Ptr frame) {
+    // 初始化位姿估计，使用上一帧的位姿
+    cv::Mat R = Frame::last_frame_->pose_(cv::Range(0,3), cv::Range(0,3));
+    cv::Mat tvec = Frame::last_frame_->pose_(cv::Range(0,3), cv::Range(3,4));
+    cv::Mat rvec;
+    cv::Rodrigues(R, rvec);
+
+    // 配置Ceres求解器
+    ceres::Problem problem;
+    double pose[6];  // 前3个为旋转向量，后3个为平移向量
+    pose[0] = rvec.at<double>(0);
+    pose[1] = rvec.at<double>(1);
+    pose[2] = rvec.at<double>(2);
+    pose[3] = tvec.at<double>(0);
+    pose[4] = tvec.at<double>(1);
+    pose[5] = tvec.at<double>(2);
+
+    // 添加残差块
+    for (const auto& kp : frame->left_kps_) {
+        if (auto mp = kp.map_point.lock()) {
+            cv::Point3d p3d = *mp;
+            ceres::CostFunction* cost_function = ReprojectionError::Create(kp.pt, p3d, frame->K);
+            problem.AddResidualBlock(cost_function, nullptr, pose, pose + 3);
+        }
+    }
+
+    // 配置求解器选项
+    ceres::Solver::Options options;
+    options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
+    options.minimizer_progress_to_stdout = false;
+    options.max_num_iterations = 100;
+
+    // 求解优化问题
+    ceres::Solver::Summary summary;
+    ceres::Solve(options, &problem, &summary);
+
+    // 将优化结果转换回位姿矩阵
+    cv::Mat optimized_rvec = (cv::Mat_<double>(3,1) << pose[0], pose[1], pose[2]);
+    cv::Rodrigues(optimized_rvec, R);
+    cv::Mat optimized_tvec = (cv::Mat_<double>(3,1) << pose[3], pose[4], pose[5]);
+
+    cv::Mat optimized_pose = cv::Mat::eye(4, 4, CV_64F);
+    R.copyTo(optimized_pose(cv::Rect(0, 0, 3, 3)));
+    optimized_tvec.copyTo(optimized_pose(cv::Rect(3, 0, 1, 3)));
+
+    frame->pose_ = optimized_pose;
+}
 
 }
