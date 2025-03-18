@@ -23,6 +23,7 @@ public:
 
 
     std::weak_ptr<MapPoint> map_point;
+    std::shared_ptr<KeyPoint> match;
     
     bool is_outlier = false;
 };
