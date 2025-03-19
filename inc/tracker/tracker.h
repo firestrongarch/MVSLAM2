@@ -108,6 +108,51 @@ private:
         cv::Point2d point2d_;
         double P_[12];  // 投影矩阵
     };
+
+    // 四元数版本的重投影误差
+    struct ReprojectionErrorQuat {
+        ReprojectionErrorQuat(const cv::Point2d& point2d, const cv::Point3d& point3d, const cv::Mat& K)
+            : point2d_(point2d), point3d_(point3d) {
+            fx = K.at<double>(0, 0);
+            fy = K.at<double>(1, 1);
+            cx = K.at<double>(0, 2);
+            cy = K.at<double>(1, 2);
+        }
+
+        template <typename T>
+        bool operator()(const T* const pose, T* residuals) const {
+            const T* q = pose;     // 四元数 [qw, qx, qy, qz]
+            const T* t = pose + 4; // 平移向量 [tx, ty, tz]
+
+            // 使用四元数进行旋转
+            T p[3];
+            T pt[3] = {T(point3d_.x), T(point3d_.y), T(point3d_.z)};
+            ceres::QuaternionRotatePoint(q, pt, p);
+
+            // 添加平移
+            p[0] += t[0];
+            p[1] += t[1];
+            p[2] += t[2];
+
+            // 投影到像素平面
+            T u = fx * p[0] / p[2] + cx;
+            T v = fy * p[1] / p[2] + cy;
+
+            residuals[0] = u - T(point2d_.x);
+            residuals[1] = v - T(point2d_.y);
+
+            return true;
+        }
+
+        static ceres::CostFunction* Create(const cv::Point2d& point2d, const cv::Point3d& point3d, const cv::Mat& K) {
+            return new ceres::AutoDiffCostFunction<ReprojectionErrorQuat, 2, 7>(
+                new ReprojectionErrorQuat(point2d, point3d, K));
+        }
+
+        cv::Point2d point2d_;
+        cv::Point3d point3d_;
+        double fx, fy, cx, cy;
+    };
 };
 
 }

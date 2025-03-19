@@ -1,4 +1,6 @@
 #include "tracker/tracker.h"
+#include <ceres/manifold.h>
+#include <opencv2/core/quaternion.hpp>
 #include <opencv2/opencv.hpp>
 
 namespace MVSLAM2 {
@@ -314,21 +316,31 @@ void CeresTracker::Pnp(Frame::Ptr frame) {
         return;
     }
 
-    // 初始化位姿估计
+    // 初始化位姿估计：将旋转矩阵转换为四元数
     cv::Mat R = Frame::last_frame_->pose_(cv::Range(0,3), cv::Range(0,3));
     cv::Mat tvec = Frame::last_frame_->pose_(cv::Range(0,3), cv::Range(3,4));
-    cv::Mat rvec;
-    cv::Rodrigues(R, rvec);
+    
+    // 使用OpenCV的四元数类
+    cv::Quatd q = cv::Quatd::createFromRotMat(R);
+    
+    double pose[7];  // [qw, qx, qy, qz, tx, ty, tz]
+    pose[0] = q.w;
+    pose[1] = q.x;
+    pose[2] = q.y;
+    pose[3] = q.z;
+    pose[4] = tvec.at<double>(0);
+    pose[5] = tvec.at<double>(1);
+    pose[6] = tvec.at<double>(2);
 
     // 配置Ceres求解器
     ceres::Problem problem;
-    double pose[6];  // 前3个为旋转向量，后3个为平移向量
-    pose[0] = rvec.at<double>(0);
-    pose[1] = rvec.at<double>(1);
-    pose[2] = rvec.at<double>(2);
-    pose[3] = tvec.at<double>(0);
-    pose[4] = tvec.at<double>(1);
-    pose[5] = tvec.at<double>(2);
+
+    // 先添加一个参数块，然后再设置流形
+    problem.AddParameterBlock(pose, 7);
+    
+    // 设置流形
+    auto pose_manifold = new ceres::ProductManifold<ceres::QuaternionManifold, ceres::EuclideanManifold<3>>();
+    problem.SetManifold(pose, pose_manifold);
 
     // 构建有效特征点索引映射
     std::vector<size_t> valid_indices;
@@ -339,13 +351,12 @@ void CeresTracker::Pnp(Frame::Ptr frame) {
             valid_indices.push_back(i);
             cv::Point3d p3d = *mp;
             ceres::CostFunction* cost_function = 
-                ReprojectionError::Create(frame->left_kps_[i].pt, p3d, frame->K);
+                ReprojectionErrorQuat::Create(frame->left_kps_[i].pt, p3d, frame->K);
             residual_block_ids.push_back(
                 problem.AddResidualBlock(
                     cost_function,
                     new ceres::HuberLoss(5.9915),
-                    pose,
-                    pose + 3
+                    pose  // 现在pose包含了四元数和平移向量
                 )
             );
         }
@@ -402,23 +413,24 @@ void CeresTracker::Pnp(Frame::Ptr frame) {
                 
                 problem.RemoveResidualBlock(residual_block_ids[i]);
                 residual_block_ids[i] = problem.AddResidualBlock(
-                    ReprojectionError::Create(
+                    ReprojectionErrorQuat::Create(
                         frame->left_kps_[valid_indices[i]].pt, 
                         *mp, 
                         frame->K
                     ),
                     nullptr,
-                    pose,
-                    pose + 3
+                    pose
                 );
             }
         }
     }
 
-    // 更新位姿
-    cv::Mat optimized_rvec = (cv::Mat_<double>(3,1) << pose[0], pose[1], pose[2]);
-    cv::Rodrigues(optimized_rvec, R);
-    cv::Mat optimized_tvec = (cv::Mat_<double>(3,1) << pose[3], pose[4], pose[5]);
+    // 更新位姿：将四元数转换回旋转矩阵
+    cv::Quatd final_q(pose[0], pose[1], pose[2], pose[3]);
+    cv::Matx33d rot_mat = final_q.toRotMat3x3();
+    // 确保正确转换回cv::Mat
+    R = cv::Mat(rot_mat);
+    cv::Mat optimized_tvec = (cv::Mat_<double>(3,1) << pose[4], pose[5], pose[6]);
 
     cv::Mat optimized_pose = cv::Mat::eye(4, 4, CV_64F);
     R.copyTo(optimized_pose(cv::Rect(0, 0, 3, 3)));
