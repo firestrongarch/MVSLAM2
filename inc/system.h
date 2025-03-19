@@ -6,7 +6,7 @@
 #include <thread>
 #include "viewer.h"
 #include "map.h"
-#include "tracker.h"
+#include "tracker/tracker.h"
 
 namespace MVSLAM2 {
 
