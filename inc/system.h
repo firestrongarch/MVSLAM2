@@ -6,7 +6,7 @@
 #include <thread>
 #include "viewer.h"
 #include "map.h"
-#include "tracker/tracker.h"
+#include "tracker/ceres_tracker.h"
 
 namespace MVSLAM2 {
 
@@ -26,8 +26,8 @@ private:
     Viewer::Ptr viewer_;
     std::thread viewer_thread_;
     Map::Ptr map_ = std::make_shared<Map>();
-    // Tracker::Ptr tracker_ = std::make_shared<Tracker>();
-    Tracker::Ptr tracker_ = std::make_shared<CeresTracker>();
+    Tracker::Ptr tracker_ = std::make_shared<Tracker>();
+    // Tracker::Ptr tracker_ = std::make_shared<CeresTracker>();
 };
 
 }

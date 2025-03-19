@@ -15,7 +15,7 @@ public:
     void RenderMapPoint();
     // void SetMap(const Map::Ptr map);
     void DrawFrame(Frame::Ptr frame);
-
+    void DrawMatches(Frame::Ptr frame);
 private:
     void Render();
     void RenderKf();

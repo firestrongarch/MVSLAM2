@@ -1,4 +1,5 @@
 #include "viewer.h"
+#include "frame.h"
 
 namespace MVSLAM2 {
 
@@ -116,6 +117,19 @@ void Viewer::DrawFrame(Frame::Ptr frame) {
     //     cv::rectangle(out2, pt1, pt2, cv::Scalar(0, 255, 0));
     //     cv::circle(out2, kp.pt, 2, cv::Scalar(0, 255, 0), cv::FILLED);
     // }
+}
+
+void Viewer::DrawMatches(Frame::Ptr frame) {
+    cv::Mat out1 = frame->left_image_.clone();
+    cv::cvtColor(out1, out1, cv::COLOR_GRAY2BGR);
+
+    // 画出特征跟踪结果
+    for (auto kp : frame->left_kps_) {
+        cv::circle(out1, kp.match, 2, cv::Scalar(0, 255, 0), cv::FILLED);
+        cv::line(out1, kp.match, kp.pt, cv::Scalar(0, 0, 255));
+    }
+
+    cv::imshow("matches", out1);
 }
 
 }
