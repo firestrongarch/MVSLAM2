@@ -31,6 +31,7 @@ public:
 
 class CeresTracker : public Tracker {
 public:
+    void Extract3d(Frame::Ptr frame, Map::Ptr map) override;
     void Pnp(Frame::Ptr frame) override;
 private:
     // 定义重投影误差代价函数
@@ -74,6 +75,38 @@ private:
         cv::Point2d point2d_;
         cv::Point3d point3d_;
         double fx, fy, cx, cy;
+    };
+
+    // 添加三角化误差模型
+    struct TriangulationError {
+        TriangulationError(const cv::Point2d& point2d, const cv::Mat& P)
+            : point2d_(point2d) {
+            memcpy(P_, P.ptr<double>(), 12 * sizeof(double));
+        }
+
+        template <typename T>
+        bool operator()(const T* const point3d, T* residuals) const {
+            // 投影
+            T p[3];
+            p[0] = P_[0] * point3d[0] + P_[1] * point3d[1] + P_[2] * point3d[2] + P_[3];
+            p[1] = P_[4] * point3d[0] + P_[5] * point3d[1] + P_[6] * point3d[2] + P_[7];
+            p[2] = P_[8] * point3d[0] + P_[9] * point3d[1] + P_[10] * point3d[2] + P_[11];
+
+            // 计算重投影误差
+            T u = p[0] / p[2];
+            T v = p[1] / p[2];
+            residuals[0] = u - T(point2d_.x);
+            residuals[1] = v - T(point2d_.y);
+            return true;
+        }
+
+        static ceres::CostFunction* Create(const cv::Point2d& point2d, const cv::Mat& P) {
+            return new ceres::AutoDiffCostFunction<TriangulationError, 2, 3>(
+                new TriangulationError(point2d, P));
+        }
+
+        cv::Point2d point2d_;
+        double P_[12];  // 投影矩阵
     };
 };
 

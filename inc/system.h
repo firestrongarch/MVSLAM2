@@ -26,7 +26,8 @@ private:
     Viewer::Ptr viewer_;
     std::thread viewer_thread_;
     Map::Ptr map_ = std::make_shared<Map>();
-    Tracker::Ptr tracker_ = std::make_shared<Tracker>();
+    // Tracker::Ptr tracker_ = std::make_shared<Tracker>();
+    Tracker::Ptr tracker_ = std::make_shared<CeresTracker>();
 };
 
 }

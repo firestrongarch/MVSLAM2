@@ -18,15 +18,21 @@ void System::Run(Frame::Ptr frame) {
         return;
     }
 
+    // 特征点太少，不进行处理
+    if (Frame::last_frame_->left_kps_.size() < 10) {
+        return;
+    }
+
     tracker_->Track(frame);
 
-    for (auto& kp: frame->left_kps_) {
-        std::cout << "last point: " << kp.match->pt << std::endl;
-        std::cout << "current point: " <<  kp.pt  << std::endl;
-    }
+    // for (auto& kp: frame->left_kps_) {
+    //     std::cout << "last point: " << kp.match->pt << std::endl;
+    //     std::cout << "current point: " <<  kp.pt  << std::endl;
+    // }
 
     frame->pose_ = frame->relative_pose_ * Frame::last_frame_->pose_;
     tracker_->Pnp(frame);
+    std::cout<< "size: " << frame->left_kps_.size() << std::endl;
     frame->relative_pose_ = frame->pose_ * Frame::last_frame_->pose_.inv();
 
     viewer_->AddTrajectoryPose(frame->pose_);
@@ -39,6 +45,12 @@ void System::Run(Frame::Ptr frame) {
     //     std::cout << "Reprojection Error: " << cv::norm(p2d - kps.pt) << std::endl;
 
     // }
+
+    // 补充特征点
+    if (frame->left_kps_.size() < 50) {
+        tracker_->Extract3d(frame, map_);
+    }
+    std::cout << "add size:" << frame->left_kps_.size() << std::endl;
 
     std::cout << "Frame ID: " << frame->id << ", Timestamp: " << frame->timestamp_ << std::endl;
     // std::cout << "Pose: " << frame->pose_ << std::endl;

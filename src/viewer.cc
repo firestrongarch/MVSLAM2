@@ -45,10 +45,21 @@ void Viewer::Render()
     if (traj_VO_.empty()){
         return;
     }
+    
+    // 绘制轨迹点
     glPointSize(5);
     glBegin(GL_POINTS);
     for (auto &p : traj_VO_){
         glColor3f(0, 1, 0);
+        glVertex3d(p[0], p[1], p[2]);
+    }
+    glEnd();
+    
+    // 绘制轨迹线
+    glLineWidth(2);
+    glBegin(GL_LINE_STRIP);
+    for (auto &p : traj_VO_){
+        glColor3f(0, 0, 1);  // 蓝色轨迹线
         glVertex3d(p[0], p[1], p[2]);
     }
     glEnd();
