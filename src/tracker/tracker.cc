@@ -1,11 +1,7 @@
 #include "tracker/tracker.h"
 #include <ceres/manifold.h>
-#include <opencv2/core/cvstd_wrapper.hpp>
-#include <opencv2/core/mat.hpp>
-#include <opencv2/core/quaternion.hpp>
-#include <opencv2/features2d.hpp>
-#include <opencv2/highgui.hpp>
 #include <opencv2/opencv.hpp>
+#include <vector>
 
 namespace MVSLAM2 {
 
@@ -54,10 +50,12 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
 
     std::vector<cv::Point2d> pts1, pts2;
     std::vector<cv::KeyPoint> kps1_good;
+    cv::Mat des1_good;
     for (const auto& match : good_matches) {
         pts1.push_back(kps1[match.queryIdx].pt);
         pts2.push_back(kps2[match.trainIdx].pt);
         kps1_good.push_back(kps1[match.queryIdx]);
+        des1_good.push_back(des1.row(match.queryIdx));
     }
     // 转换到相机坐标系
     std::vector<cv::Point2d> pts1_cam, pts2_cam;
@@ -105,6 +103,7 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
         MapPoint::Ptr map_point = std::make_shared<MapPoint>(p3d, MapPoint::next_id++);
         KeyPoint kp = kps1_good[i];
         kp.map_point = map_point;
+        kp.des = des1_good.row(i);
         frame->left_kps_.push_back(kp);
         
         map->InsertMapPoint(map_point);
@@ -118,10 +117,9 @@ void Tracker::Track(Frame::Ptr frame) {
     std::vector<cv::KeyPoint> kps1, kps2;
     cv::Mat des1, des2;
     for (const auto& kp : Frame::last_frame_->left_kps_) {
+        des1.push_back(kp.des);
         kps1.push_back(kp);
     }
-    detector->compute(Frame::last_frame_->left_image_, kps1, des1);
-    // detector->detectAndCompute(Frame::last_frame_->left_image_, cv::noArray(), kps1, des1);
     detector->detectAndCompute(frame->left_image_, cv::noArray(), kps2, des2);
     
     cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create("BruteForce-Hamming");
@@ -151,8 +149,8 @@ void Tracker::Track(Frame::Ptr frame) {
     for (const auto& match : good_matches) {
         KeyPoint kp = kps2[match.trainIdx];
         kp.map_point = Frame::last_frame_->left_kps_[match.queryIdx].map_point;
-        kp.match = kps1[match.queryIdx].pt;
-        std::cout << "Match: " << Frame::last_frame_->left_kps_[match.queryIdx].pt << " -> " << kps1[match.queryIdx].pt << std::endl;
+        kp.match = Frame::last_frame_->left_kps_[match.queryIdx].pt;
+        kp.des = Frame::last_frame_->left_kps_[match.queryIdx].des;
         frame->left_kps_.push_back(kp);
     }
 }

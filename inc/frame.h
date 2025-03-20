@@ -23,6 +23,7 @@ public:
 
 
     std::weak_ptr<MapPoint> map_point;
+    cv::Mat des;
     cv::Point2f match;
     
     bool is_outlier = false;

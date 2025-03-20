@@ -125,8 +125,8 @@ void Viewer::DrawMatches(Frame::Ptr frame) {
 
     // 画出特征跟踪结果
     for (auto kp : frame->left_kps_) {
-        cv::circle(out1, kp.match, 2, cv::Scalar(0, 255, 0), cv::FILLED);
-        cv::line(out1, kp.match, kp.pt, cv::Scalar(0, 0, 255));
+        cv::circle(out1, kp.pt, 3, cv::Scalar(0, 255, 0), cv::FILLED);
+        cv::line(out1, kp.pt, kp.match, cv::Scalar(0, 0, 255));
     }
 
     cv::imshow("matches", out1);
