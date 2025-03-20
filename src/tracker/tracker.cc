@@ -2,6 +2,8 @@
 #include <ceres/manifold.h>
 #include <opencv2/core/cvstd_wrapper.hpp>
 #include <opencv2/core/quaternion.hpp>
+#include <opencv2/features2d.hpp>
+#include <opencv2/highgui.hpp>
 #include <opencv2/opencv.hpp>
 
 namespace MVSLAM2 {
@@ -12,10 +14,6 @@ void Tracker::Extract2d(Frame::Ptr frame) {
 }
 
 void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
-    std::vector<cv::KeyPoint> kps1;
-    cv::Mat des1;
-    std::vector<cv::KeyPoint> kps2;
-    cv::Mat des2;
 
     // 屏蔽已有特征点的区域
     cv::Mat mask(frame->left_image_.size(), CV_8UC1, cv::Scalar::all(255));
@@ -27,6 +25,8 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
                     cv::FILLED);
     }
 
+    std::vector<cv::KeyPoint> kps1, kps2;
+    cv::Mat des1, des2;
     auto detector = cv::ORB::create(2000);
     detector->detectAndCompute(frame->left_image_, mask, kps1, des1);
     detector->detectAndCompute(frame->right_image_, cv::noArray(), kps2, des2);
@@ -51,11 +51,12 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
         }
     }
 
-
     std::vector<cv::Point2d> pts1, pts2;
+    std::vector<cv::KeyPoint> kps1_good;
     for (const auto& match : good_matches) {
         pts1.push_back(kps1[match.queryIdx].pt);
         pts2.push_back(kps2[match.trainIdx].pt);
+        kps1_good.push_back(kps1[match.queryIdx]);
     }
     // 转换到相机坐标系
     std::vector<cv::Point2d> pts1_cam, pts2_cam;
@@ -101,9 +102,8 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
 
         // 只有当3D点有效时，才保存对应的2D点
         MapPoint::Ptr map_point = std::make_shared<MapPoint>(p3d, MapPoint::next_id++);
-        KeyPoint kp {};
+        KeyPoint kp = kps1_good[i];
         kp.map_point = map_point;
-        kp.pt = pts1[i];
         frame->left_kps_.push_back(kp);
         
         map->InsertMapPoint(map_point);
@@ -113,68 +113,38 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
 void Tracker::Track(Frame::Ptr frame) {
     // 准备上一帧的特征点和描述子
     auto detector = cv::ORB::create(2000);
-    std::vector<cv::KeyPoint> kps1;
-    for (const auto& kp : Frame::last_frame_->left_kps_) {
-        cv::KeyPoint cvkp;
-        cvkp.pt = kp.pt;
-        kps1.push_back(cvkp);
-    }
-    
-    if (kps1.empty()) {
-        std::cout << "Warning: No keypoints in last frame!" << std::endl;
-        return;
-    }
-
-    cv::Mat des1;
-    detector->compute(Frame::last_frame_->left_image_, kps1, des1);
-
     // 检测当前帧的特征点
-    std::vector<cv::KeyPoint> kps2;
-    cv::Mat des2;
+    std::vector<cv::KeyPoint> kps1, kps2;
+    cv::Mat des1, des2;
+    for (const auto& kp : Frame::last_frame_->left_kps_) {
+        kps1.push_back(kp);
+    }
+    detector->compute(Frame::last_frame_->left_image_, kps1, des1);
+    // detector->detectAndCompute(Frame::last_frame_->left_image_, cv::noArray(), kps1, des1);
     detector->detectAndCompute(frame->left_image_, cv::noArray(), kps2, des2);
-
-    if (kps2.empty() || des1.empty() || des2.empty()) {
-        std::cout << "Warning: No keypoints or descriptors!" << std::endl;
-        return;
-    }
-
-    // 使用交叉匹配以提高匹配质量
-    std::vector<std::vector<cv::DMatch>> matches1to2, matches2to1;
+    
     cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create("BruteForce-Hamming");
-    matcher->knnMatch(des1, des2, matches1to2, 2);
-    matcher->knnMatch(des2, des1, matches2to1, 2);
-
-    // 交叉检查 + ratio test
+    std::vector<cv::DMatch> matches;
+    matcher->match(des1, des2, matches);
+    // 匹配点对筛选
+    auto min_max = std::minmax_element(matches.begin(), matches.end(), 
+        [](const cv::DMatch& a, const cv::DMatch& b) {
+            return a.distance < b.distance;
+        });
+    double min_dist = min_max.first->distance;
+    double max_dist = min_max.second->distance;
+    // 当描述子之间的距离大于两倍的最小距离时,即认为匹配有误.但有时候最小距离会非常小,设置一个经验值30作为下限.
     std::vector<cv::DMatch> good_matches;
-    const float ratio_thresh = 0.8f;  // 放宽比率测试阈值
-
-    for (size_t i = 0; i < matches1to2.size(); i++) {
-        if (matches1to2[i].size() < 2) continue;
-        
-        const cv::DMatch& m = matches1to2[i][0];
-        const cv::DMatch& n = matches1to2[i][1];
-        
-        // ratio test
-        if (m.distance > ratio_thresh * n.distance) continue;
-
-        // 交叉检查
-        bool cross_check_ok = false;
-        for (const auto& backward_matches : matches2to1[m.trainIdx]) {
-            if (backward_matches.trainIdx == m.queryIdx) {
-                cross_check_ok = true;
-                break;
-            }
-        }
-        
-        if (cross_check_ok) {
-            good_matches.push_back(m);
+    for (int i = 0; i < des1.rows; i++) {
+        if (matches[i].distance <= std::max(2 * min_dist, 30.0)) {
+            good_matches.push_back(matches[i]);
         }
     }
 
-    if (good_matches.size() < 10) {
-        std::cout << "Warning: Too few good matches: " << good_matches.size() << std::endl;
-        return;
-    }
+    cv::Mat img_matches;
+    cv::drawMatches(Frame::last_frame_->left_image_, kps1, frame->left_image_, kps2, good_matches, img_matches);
+    cv::imshow("matches", img_matches);
+    cv::waitKey(0);
 
     // 保存匹配结果
     frame->left_kps_.clear();
