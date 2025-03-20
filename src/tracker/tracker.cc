@@ -1,6 +1,7 @@
 #include "tracker/tracker.h"
 #include <ceres/manifold.h>
 #include <opencv2/core/cvstd_wrapper.hpp>
+#include <opencv2/core/mat.hpp>
 #include <opencv2/core/quaternion.hpp>
 #include <opencv2/features2d.hpp>
 #include <opencv2/highgui.hpp>
@@ -143,20 +144,17 @@ void Tracker::Track(Frame::Ptr frame) {
 
     cv::Mat img_matches;
     cv::drawMatches(Frame::last_frame_->left_image_, kps1, frame->left_image_, kps2, good_matches, img_matches);
-    cv::imshow("matches", img_matches);
+    cv::imshow("Matches", img_matches);
     cv::waitKey(0);
 
     // 保存匹配结果
-    frame->left_kps_.clear();
     for (const auto& match : good_matches) {
-        KeyPoint kp;
-        kp.pt = kps2[match.trainIdx].pt;
+        KeyPoint kp = kps2[match.trainIdx];
         kp.map_point = Frame::last_frame_->left_kps_[match.queryIdx].map_point;
-        kp.match = Frame::last_frame_->left_kps_[match.queryIdx].pt;
+        kp.match = kps1[match.queryIdx].pt;
+        std::cout << "Match: " << Frame::last_frame_->left_kps_[match.queryIdx].pt << " -> " << kps1[match.queryIdx].pt << std::endl;
         frame->left_kps_.push_back(kp);
     }
-
-    std::cout << "Successfully matched " << frame->left_kps_.size() << " points" << std::endl;
 }
 
 void Tracker::Pnp(Frame::Ptr frame) {

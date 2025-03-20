@@ -26,8 +26,8 @@ void System::Run(Frame::Ptr frame) {
 
     tracker_->Track(frame);
 
-    // viewer_->DrawMatches(frame);
-    // cv::waitKey(0);
+    viewer_->DrawMatches(frame);
+    cv::waitKey(0);
 
     // frame->pose_ = frame->relative_pose_ * Frame::last_frame_->pose_;
     // tracker_->Pnp(frame);
