@@ -6,6 +6,7 @@
 #include <memory>
 #include <opencv2/opencv.hpp>
 #include <thread>
+#include <print>
 
 int main (int argc, char** argv){
     auto file = cv::FileStorage("../config/kitti00.yaml",
