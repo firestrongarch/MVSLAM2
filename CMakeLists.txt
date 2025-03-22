@@ -34,7 +34,3 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 add_executable(test
 ./test/test.cc)
 target_link_libraries(test ${PROJECT_NAME})
-
-add_executable(triangulate
-./test/triangulate.cpp)
-target_link_libraries(triangulate ${PROJECT_NAME})
