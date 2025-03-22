@@ -1,5 +1,6 @@
 #include "tracker/tracker.h"
 #include <ceres/manifold.h>
+#include <opencv2/calib3d.hpp>
 #include <opencv2/opencv.hpp>
 #include <vector>
 
@@ -33,13 +34,12 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
     matcher->match(des1, des2, matches);
 
     // 匹配点对筛选
-    double min_dist = 10000, max_dist = 0;
-    // 找出所有匹配之间的最小距离和最大距离, 即是最相似的和最不相似的两组点之间的距离
-    for (int i = 0; i < des1.rows; i++) {
-        double dist = matches[i].distance;
-        if (dist < min_dist) min_dist = dist;
-        if (dist > max_dist) max_dist = dist;
-    }
+    auto min_max = std::minmax_element(matches.begin(), matches.end(), 
+        [](const cv::DMatch& a, const cv::DMatch& b) {
+            return a.distance < b.distance;
+        });
+    double min_dist = min_max.first->distance;
+    double max_dist = min_max.second->distance;
     // 当描述子之间的距离大于两倍的最小距离时,即认为匹配有误.但有时候最小距离会非常小,设置一个经验值30作为下限.
     std::vector<cv::DMatch> good_matches;
     for (int i = 0; i < des1.rows; i++) {
@@ -140,10 +140,10 @@ void Tracker::Track(Frame::Ptr frame) {
         }
     }
 
-    cv::Mat img_matches;
-    cv::drawMatches(Frame::last_frame_->left_image_, kps1, frame->left_image_, kps2, good_matches, img_matches);
-    cv::imshow("Matches", img_matches);
-    cv::waitKey(0);
+    // cv::Mat img_matches;
+    // cv::drawMatches(Frame::last_frame_->left_image_, kps1, frame->left_image_, kps2, good_matches, img_matches);
+    // cv::imshow("Matches", img_matches);
+    // cv::waitKey(0);
 
     // 保存匹配结果
     for (const auto& match : good_matches) {
@@ -169,28 +169,29 @@ void Tracker::Pnp(Frame::Ptr frame) {
         points3d.push_back(p3d);
         points2d.push_back(kp.pt);
     }
-    cv::solvePnP(
-        points3d,
-        points2d,
-        frame->K,
-        cv::Mat(),
-        rvec,
-        tvec,
-        true
-    );
-    // cv::solvePnPRansac(
+    // cv::solvePnP(
     //     points3d,
     //     points2d,
     //     frame->K,
     //     cv::Mat(),
     //     rvec,
     //     tvec,
-    //     true,
-    //     100, // max iterations
-    //     8.0, // reprojection error
-    //     0.99, // confidence
-    //     inliers
+    //     true
     // );
+    cv::solvePnPRansac(
+        points3d,
+        points2d,
+        frame->K,
+        cv::Mat(),
+        rvec,
+        tvec,
+        true,
+        100, // max iterations
+        8.0, // reprojection error
+        0.95, // confidence
+        inliers,
+        cv::SOLVEPNP_EPNP
+    );
     cv::Rodrigues(rvec, R);
     cv::Mat pose = cv::Mat::eye(4, 4, CV_64F);
     R.copyTo(pose(cv::Rect(0, 0, 3, 3)));

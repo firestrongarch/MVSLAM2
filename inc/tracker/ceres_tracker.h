@@ -6,7 +6,7 @@
 namespace MVSLAM2 {
 class CeresTracker : public Tracker {
 public:
-    void Extract3d(Frame::Ptr frame, Map::Ptr map) override;
+    // void Extract3d(Frame::Ptr frame, Map::Ptr map) override;
     void Pnp(Frame::Ptr frame) override;
 private:
     // 定义重投影误差代价函数

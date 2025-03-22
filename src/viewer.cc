@@ -90,7 +90,6 @@ void Viewer::AddTrajectoryPose(const cv::Mat &pose)
     t_d[2] = static_cast<float>(t.at<double>(2,0));
     // poses_.emplace_back(pose.cast<float>());
     traj_VO_.emplace_back(t_d);
-    std::cout << t_d << std::endl;
 }
 
 void Viewer::DrawFrame(Frame::Ptr frame) {
@@ -125,7 +124,7 @@ void Viewer::DrawMatches(Frame::Ptr frame) {
 
     // 画出特征跟踪结果
     for (auto kp : frame->left_kps_) {
-        cv::circle(out1, kp.pt, 3, cv::Scalar(0, 255, 0), cv::FILLED);
+        cv::circle(out1, kp.pt, 4, cv::Scalar(0, 255, 0), cv::FILLED);
         cv::line(out1, kp.pt, kp.match, cv::Scalar(0, 0, 255));
     }
 

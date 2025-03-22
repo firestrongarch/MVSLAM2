@@ -27,14 +27,13 @@ void System::Run(Frame::Ptr frame) {
     tracker_->Track(frame);
 
     viewer_->DrawMatches(frame);
-    cv::waitKey(0);
+    // cv::waitKey(30);
 
     // frame->pose_ = frame->relative_pose_ * Frame::last_frame_->pose_;
-    // tracker_->Pnp(frame);
-    // std::cout<< "size: " << frame->left_kps_.size() << std::endl;
+    tracker_->Pnp(frame);
     // frame->relative_pose_ = frame->pose_ * Frame::last_frame_->pose_.inv();
 
-    // viewer_->AddTrajectoryPose(frame->pose_);
+    viewer_->AddTrajectoryPose(frame->pose_);
 
     // 补充特征点
     if (frame->left_kps_.size() < 50) {
