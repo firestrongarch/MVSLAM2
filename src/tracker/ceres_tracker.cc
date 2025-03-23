@@ -125,8 +125,8 @@ void CeresTracker::Pnp(Frame::Ptr frame) {
     }
 
     // 初始化位姿估计：将旋转矩阵转换为四元数
-    cv::Mat R = Frame::last_frame_->pose_(cv::Range(0,3), cv::Range(0,3));
-    cv::Mat tvec = Frame::last_frame_->pose_(cv::Range(0,3), cv::Range(3,4));
+    cv::Mat R = Frame::last_frame_->T_wc(cv::Range(0,3), cv::Range(0,3));
+    cv::Mat tvec = Frame::last_frame_->T_wc(cv::Range(0,3), cv::Range(3,4));
     
     // 使用OpenCV的四元数类
     cv::Quatd q = cv::Quatd::createFromRotMat(R);
@@ -244,7 +244,7 @@ void CeresTracker::Pnp(Frame::Ptr frame) {
     R.copyTo(optimized_pose(cv::Rect(0, 0, 3, 3)));
     optimized_tvec.copyTo(optimized_pose(cv::Rect(3, 0, 1, 3)));
 
-    frame->pose_ = optimized_pose;
+    frame->T_wc = optimized_pose;
 
     // 只保留内点
     std::vector<KeyPoint> inlier_kps;

@@ -39,18 +39,18 @@ struct Frame {
 
     std::vector<KeyPoint> left_kps_;
 
-    cv::Mat pose_ = cv::Mat::eye(4, 4, CV_64F);
-    cv::Mat relative_pose_ = cv::Mat::eye(4, 4, CV_64F);
+    cv::Mat T_wc = cv::Mat::eye(4, 4, CV_64F);
+    cv::Mat T_ww = cv::Mat::eye(4, 4, CV_64F);
 
     static Ptr last_frame_;
     static Ptr kf;
     static cv::Mat K;
     static cv::Mat T_01;
 
-    static void Pixel2Camera(const std::vector<cv::Point2d>& pts1, const std::vector<cv::Point2d>& pts2,
-                      std::vector<cv::Point2d>& pts1_cam, std::vector<cv::Point2d>& pts2_cam);
+    static cv::Point2d Pixel2Camera(const cv::Point2d& p2d);
 
     cv::Point2d World2Pixel(const cv::Point3d& p3d);
+    cv::Point3d Pixel2World(const cv::Point2d& p2d);
 };
 
 }

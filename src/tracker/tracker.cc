@@ -57,18 +57,24 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
         kps1_good.push_back(kps1[match.queryIdx]);
         des1_good.push_back(des1.row(match.queryIdx));
     }
+
     // 转换到相机坐标系
     std::vector<cv::Point2d> pts1_cam, pts2_cam;
-    frame->Pixel2Camera(pts1, pts2, pts1_cam, pts2_cam);
+    for (size_t i = 0; i < pts1.size(); i++) {
+        cv::Point2d p1 = pts1[i];
+        cv::Point2d p2 = pts2[i];
+        pts1_cam.push_back(frame->Pixel2Camera(p1));
+        pts2_cam.push_back(frame->Pixel2Camera(p2));
+    }
 
     // 构建投影矩阵：基于当前帧位姿
     // 第一个相机的投影矩阵：从frame->pose提取前3行
     cv::Mat P1 = cv::Mat::zeros(3, 4, CV_64F);
-    frame->pose_(cv::Range(0,3), cv::Range::all()).copyTo(P1);
+    frame->T_wc(cv::Range(0,3), cv::Range::all()).copyTo(P1);
 
     // 第二个相机的投影矩阵：T01.inv * frame->pose，取前3行
     cv::Mat T_inv = frame->T_01.inv();
-    cv::Mat P2 = (frame->T_01 * frame->pose_)(cv::Range(0,3), cv::Range::all());
+    cv::Mat P2 = (T_inv * frame->T_wc)(cv::Range(0,3), cv::Range::all());
 
     // 三角化
     cv::Mat points4d;
@@ -156,8 +162,9 @@ void Tracker::Track(Frame::Ptr frame) {
 }
 
 void Tracker::Pnp(Frame::Ptr frame) {
-    cv::Mat R = Frame::last_frame_->pose_(cv::Range(0,3), cv::Range(0,3));
-    cv::Mat tvec = Frame::last_frame_->pose_(cv::Range(0,3), cv::Range(3,4));
+    cv::Mat T_cw = frame->T_wc.inv();
+    cv::Mat R = T_cw(cv::Range(0,3), cv::Range(0,3));
+    cv::Mat tvec = T_cw(cv::Range(0,3), cv::Range(3,4));
     cv::Mat rvec;
     cv::Rodrigues(R, rvec);  // 将旋转矩阵转换为旋转向量
     std::vector<int> inliers;
@@ -193,10 +200,10 @@ void Tracker::Pnp(Frame::Ptr frame) {
         cv::SOLVEPNP_EPNP
     );
     cv::Rodrigues(rvec, R);
-    cv::Mat pose = cv::Mat::eye(4, 4, CV_64F);
-    R.copyTo(pose(cv::Rect(0, 0, 3, 3)));
-    tvec.copyTo(pose(cv::Rect(3, 0, 1, 3)));
-    frame->pose_ = pose;
+    cv::Mat T_cw_new = cv::Mat::eye(4, 4, CV_64F);
+    R.copyTo(T_cw_new(cv::Rect(0, 0, 3, 3)));
+    tvec.copyTo(T_cw_new(cv::Rect(3, 0, 1, 3)));
+    frame->T_wc = T_cw_new.inv();
 }
 
 }

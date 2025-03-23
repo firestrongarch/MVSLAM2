@@ -1,4 +1,5 @@
 #include "frame.h"
+#include <opencv2/core/types.hpp>
 
 namespace MVSLAM2 {
 
@@ -11,25 +12,25 @@ cv::Mat Frame::T_01;
 
 // 2d = K * [R|t] * 3d(世界坐标系)
 // 2d = K * 3d(相机坐标系)
-void Frame::Pixel2Camera(const std::vector<cv::Point2d>& pts1, const std::vector<cv::Point2d>& pts2,
-    std::vector<cv::Point2d>& pts1_cam, std::vector<cv::Point2d>& pts2_cam) {
-    
-    pts1_cam.resize(pts1.size());
-    pts2_cam.resize(pts2.size());
-
-    for(size_t i = 0; i < pts1.size(); i++) {
-        pts1_cam[i].x = (pts1[i].x - K.at<double>(0,2)) / K.at<double>(0,0);
-        pts1_cam[i].y = (pts1[i].y - K.at<double>(1,2)) / K.at<double>(1,1);
-        pts2_cam[i].x = (pts2[i].x - K.at<double>(0,2)) / K.at<double>(0,0);
-        pts2_cam[i].y = (pts2[i].y - K.at<double>(1,2)) / K.at<double>(1,1);
-    }
+cv::Point2d Frame::Pixel2Camera(const cv::Point2d& p2d) {
+    return cv::Point2d(
+        (p2d.x - K.at<double>(0,2)) / K.at<double>(0,0),
+        (p2d.y - K.at<double>(1,2)) / K.at<double>(1,1)
+    );
 }
 
 cv::Point2d Frame::World2Pixel(const cv::Point3d& p3d) {
     cv::Mat p3d_mat = (cv::Mat_<double>(4, 1) << p3d.x, p3d.y, p3d.z, 1);
-    cv::Mat P = pose_(cv::Range(0,3), cv::Range::all());
+    cv::Mat P = T_wc(cv::Range(0,3), cv::Range::all());
     cv::Mat p2d_mat = K * P * p3d_mat;
     return cv::Point2d(p2d_mat.at<double>(0) / p2d_mat.at<double>(2), p2d_mat.at<double>(1) / p2d_mat.at<double>(2));
+}
+
+cv::Point3d Frame::Pixel2World(const cv::Point2d& p2d) {
+    cv::Mat p2d_mat = (cv::Mat_<double>(3, 1) << p2d.x, p2d.y, 1);
+    cv::Mat P = T_wc(cv::Range(0,3), cv::Range::all());
+    cv::Mat p3d_mat = P * K * p2d_mat;
+    return cv::Point3d(p3d_mat.at<double>(0) / p3d_mat.at<double>(3), p3d_mat.at<double>(1) / p3d_mat.at<double>(3), p3d_mat.at<double>(2) / p3d_mat.at<double>(3));
 }
 
 }

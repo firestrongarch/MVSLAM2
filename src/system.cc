@@ -29,11 +29,11 @@ void System::Run(Frame::Ptr frame) {
     viewer_->DrawMatches(frame);
     // cv::waitKey(30);
 
-    // frame->pose_ = frame->relative_pose_ * Frame::last_frame_->pose_;
+    frame->T_wc = frame->T_ww * Frame::last_frame_->T_wc;
     tracker_->Pnp(frame);
-    // frame->relative_pose_ = frame->pose_ * Frame::last_frame_->pose_.inv();
+    frame->T_ww = frame->T_wc * Frame::last_frame_->T_wc.inv();
 
-    viewer_->AddTrajectoryPose(frame->pose_);
+    viewer_->AddTrajectoryPose(frame->T_wc);
 
     // 补充特征点
     if (frame->left_kps_.size() < 50) {
