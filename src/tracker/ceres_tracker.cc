@@ -120,7 +120,7 @@ namespace MVSLAM2 {
 // }
 
 void CeresTracker::Pnp(Frame::Ptr frame) {
-    if (!Frame::last_frame_ || frame->left_kps_.empty()) {
+    if (!Frame::last_frame_ || frame->kps.empty()) {
         return;
     }
 
@@ -154,12 +154,12 @@ void CeresTracker::Pnp(Frame::Ptr frame) {
     std::vector<size_t> valid_indices;
     std::vector<ceres::ResidualBlockId> residual_block_ids;
     
-    for (size_t i = 0; i < frame->left_kps_.size(); i++) {
-        if (auto mp = frame->left_kps_[i].map_point.lock()) {
+    for (size_t i = 0; i < frame->kps.size(); i++) {
+        if (auto mp = frame->kps[i].map_point.lock()) {
             valid_indices.push_back(i);
             cv::Point3d p3d = *mp;
             ceres::CostFunction* cost_function = 
-                ReprojectionErrorQuat::Create(frame->left_kps_[i].pt, p3d, frame->K);
+                ReprojectionErrorQuat::Create(frame->kps[i].pt, p3d, frame->K);
             residual_block_ids.push_back(
                 problem.AddResidualBlock(
                     cost_function,
@@ -216,13 +216,13 @@ void CeresTracker::Pnp(Frame::Ptr frame) {
 
             // 倒数第二轮时移除鲁棒核函数
             if (iter == num_iterations - 2) {
-                auto mp = frame->left_kps_[valid_indices[i]].map_point.lock();
+                auto mp = frame->kps[valid_indices[i]].map_point.lock();
                 if (!mp) continue;
                 
                 problem.RemoveResidualBlock(residual_block_ids[i]);
                 residual_block_ids[i] = problem.AddResidualBlock(
                     ReprojectionErrorQuat::Create(
-                        frame->left_kps_[valid_indices[i]].pt, 
+                        frame->kps[valid_indices[i]].pt, 
                         *mp, 
                         frame->K
                     ),
@@ -250,10 +250,10 @@ void CeresTracker::Pnp(Frame::Ptr frame) {
     std::vector<KeyPoint> inlier_kps;
     for (size_t i = 0; i < outlier_flags.size(); i++) {
         if (!outlier_flags[i]) {
-            inlier_kps.push_back(frame->left_kps_[valid_indices[i]]);
+            inlier_kps.push_back(frame->kps[valid_indices[i]]);
         }
     }
-    frame->left_kps_ = inlier_kps;
+    frame->kps = inlier_kps;
 }
 
 }

@@ -1,5 +1,7 @@
 #include "viewer.h"
 #include "frame.h"
+#include <opencv2/core/types.hpp>
+#include <print>
 
 namespace MVSLAM2 {
 
@@ -98,7 +100,7 @@ void Viewer::DrawFrame(Frame::Ptr frame) {
     cv::cvtColor(out1, out1, cv::COLOR_GRAY2BGR);
     cv::cvtColor(out2, out2, cv::COLOR_GRAY2BGR);
 
-    for (auto kp : frame->left_kps_) {
+    for (auto kp : frame->kps) {
         cv::Point2f pt1,pt2;
         pt1.x=kp.pt.x-5;
         pt1.y=kp.pt.y-5;
@@ -123,12 +125,26 @@ void Viewer::DrawMatches(Frame::Ptr frame) {
     cv::cvtColor(out1, out1, cv::COLOR_GRAY2BGR);
 
     // 画出特征跟踪结果
-    for (auto kp : frame->left_kps_) {
+    for (auto kp : frame->kps) {
         cv::circle(out1, kp.pt, 4, cv::Scalar(0, 255, 0), cv::FILLED);
         cv::line(out1, kp.pt, kp.match, cv::Scalar(0, 0, 255));
     }
 
     cv::imshow("matches", out1);
+}
+
+void Viewer::DrawReprojection(Frame::Ptr frame) {
+    cv::Mat out1 = frame->left_image_.clone();
+    cv::cvtColor(out1, out1, cv::COLOR_GRAY2BGR);
+
+    // 画出特征跟踪结果
+    for (auto kp : frame->kps) {
+        cv::circle(out1, kp.pt, 2, cv::Scalar(0, 255, 0), cv::FILLED);
+        cv::Point2d pt_rep = frame->World2Pixel(* kp.map_point.lock());
+        cv::circle(out1, pt_rep, 2, cv::Scalar(0, 0, 255), cv::FILLED);
+    }
+
+    cv::imshow("rep", out1);
 }
 
 }

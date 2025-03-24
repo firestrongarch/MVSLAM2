@@ -37,7 +37,7 @@ struct Frame {
     const double timestamp_;
     const int id;
 
-    std::vector<KeyPoint> left_kps_;
+    std::vector<KeyPoint> kps;
 
     cv::Mat T_wc = cv::Mat::eye(4, 4, CV_64F);
     cv::Mat T_ww = cv::Mat::eye(4, 4, CV_64F);

@@ -15,7 +15,7 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
 
     // 屏蔽已有特征点的区域
     cv::Mat mask(frame->left_image_.size(), CV_8UC1, cv::Scalar::all(255));
-    for (const auto &feat : frame->left_kps_){
+    for (const auto &feat : frame->kps){
         cv::rectangle(mask,
                     feat.pt - cv::Point2f(10, 10),
                     feat.pt + cv::Point2f(10, 10),
@@ -73,8 +73,7 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
     frame->T_wc(cv::Range(0,3), cv::Range::all()).copyTo(P1);
 
     // 第二个相机的投影矩阵：T01.inv * frame->pose，取前3行
-    cv::Mat T_inv = frame->T_01.inv();
-    cv::Mat P2 = (T_inv * frame->T_wc)(cv::Range(0,3), cv::Range::all());
+    cv::Mat P2 = (frame->T_01.inv() * frame->T_wc)(cv::Range(0,3), cv::Range::all());
 
     // 三角化
     cv::Mat points4d;
@@ -110,7 +109,7 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
         KeyPoint kp = kps1_good[i];
         kp.map_point = map_point;
         kp.des = des1_good.row(i);
-        frame->left_kps_.push_back(kp);
+        frame->kps.push_back(kp);
         
         map->InsertMapPoint(map_point);
     }
@@ -122,7 +121,7 @@ void Tracker::Track(Frame::Ptr frame) {
     // 检测当前帧的特征点
     std::vector<cv::KeyPoint> kps1, kps2;
     cv::Mat des1, des2;
-    for (const auto& kp : Frame::last_frame_->left_kps_) {
+    for (const auto& kp : Frame::last_frame_->kps) {
         des1.push_back(kp.des);
         kps1.push_back(kp);
     }
@@ -146,18 +145,13 @@ void Tracker::Track(Frame::Ptr frame) {
         }
     }
 
-    // cv::Mat img_matches;
-    // cv::drawMatches(Frame::last_frame_->left_image_, kps1, frame->left_image_, kps2, good_matches, img_matches);
-    // cv::imshow("Matches", img_matches);
-    // cv::waitKey(0);
-
     // 保存匹配结果
     for (const auto& match : good_matches) {
         KeyPoint kp = kps2[match.trainIdx];
-        kp.map_point = Frame::last_frame_->left_kps_[match.queryIdx].map_point;
-        kp.match = Frame::last_frame_->left_kps_[match.queryIdx].pt;
-        kp.des = Frame::last_frame_->left_kps_[match.queryIdx].des;
-        frame->left_kps_.push_back(kp);
+        kp.map_point = Frame::last_frame_->kps[match.queryIdx].map_point;
+        kp.match = Frame::last_frame_->kps[match.queryIdx].pt;
+        kp.des = Frame::last_frame_->kps[match.queryIdx].des;
+        frame->kps.push_back(kp);
     }
 }
 
@@ -171,7 +165,7 @@ void Tracker::Pnp(Frame::Ptr frame) {
     std::vector<cv::Point3d> points3d;
     std::vector<cv::Point2d> points2d;
 
-    for (const auto& kp : frame->left_kps_) {
+    for (const auto& kp : frame->kps) {
         cv::Point3d p3d = *kp.map_point.lock();
         points3d.push_back(p3d);
         points2d.push_back(kp.pt);
