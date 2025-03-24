@@ -48,6 +48,7 @@ struct Frame {
     static cv::Mat T_01;
 
     static cv::Point2d Pixel2Camera(const cv::Point2d& p2d);
+    static cv::Point2d Camera2Pixel(const cv::Point3d& p3d);
 
     cv::Point2d World2Pixel(const cv::Point3d& p3d);
     cv::Point3d Pixel2World(const cv::Point2d& p2d);

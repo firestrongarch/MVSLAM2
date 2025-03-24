@@ -2,6 +2,7 @@
 #include "frame.h"
 #include "map.h"
 #include <cmath>
+#include <opencv2/core/types.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/opencv.hpp>
 #include <vector>
@@ -29,9 +30,24 @@ void System::Run(Frame::Ptr frame) {
     viewer_->DrawMatches(frame);
     // viewer_->DrawReprojection(frame);
     // 打印重投影误差
+    // for (auto& kp : frame->kps) {
+    //     cv::Point2f pt_cam = frame->Pixel2Camera(kp.pt);
+    //     // std::cout<<"pt_cam: "<<pt_cam<<std::endl;
+    //     cv::Point3f p3d = *kp.map_point.lock();
+    //     cv::Point2f pt_rep{p3d.x/p3d.z,p3d.y/p3d.z};
+    //     // std::cout<<"pt_rep: "<<pt_rep<<std::endl;
+    //     std::println("Reprojection Error: {}", cv::norm(pt_cam - pt_rep));
+    // 
     for (auto& kp : frame->kps) {
-        cv::Point2f pt_rep = frame->World2Pixel(* kp.map_point.lock());
-        std::println("Reprojection Error: {}", cv::norm(kp.pt - pt_rep));
+        std::cout<<"K: "<<frame->K<<std::endl;
+        std::cout<<"K: "<<frame->K.at<double>(0,0)<<std::endl;
+        std::cout<<"K: "<<frame->K.at<double>(0,2)<<std::endl;
+        std::cout<<"pt: "<<kp.pt<<std::endl;
+        cv::Point3f p3d = *kp.map_point.lock();
+        std::cout<<"p3d: "<<p3d<<std::endl;
+        cv::Point2f pt_rep = frame->Camera2Pixel(p3d);
+        std::cout<<"pt_rep: "<<pt_rep<<std::endl;
+        std::println("Reprojection Error: {}", cv::norm(pt_rep - kp.pt));
     }
     cv::waitKey(0);
 

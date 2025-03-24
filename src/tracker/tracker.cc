@@ -69,9 +69,8 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
 
     // 构建投影矩阵：基于当前帧位姿
     // 第一个相机的投影矩阵：从frame->pose提取前3行
-    cv::Mat P1 = cv::Mat::zeros(3, 4, CV_64F);
-    frame->T_wc(cv::Range(0,3), cv::Range::all()).copyTo(P1);
-
+    cv::Mat P1 = frame->T_wc(cv::Range(0,3), cv::Range::all());
+    
     // 第二个相机的投影矩阵：T01.inv * frame->pose，取前3行
     cv::Mat P2 = (frame->T_01.inv() * frame->T_wc)(cv::Range(0,3), cv::Range::all());
 
