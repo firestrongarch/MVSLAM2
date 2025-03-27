@@ -34,3 +34,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 add_executable(test
 ./test/test.cc)
 target_link_libraries(test ${PROJECT_NAME})
+
+add_executable(match
+./test/match.cc)
+target_link_libraries(match ${PROJECT_NAME})
