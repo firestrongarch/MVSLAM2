@@ -1,6 +1,8 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/features2d.hpp>
 #include "gms.h"
+#include <print>
+#include <fstream>
 
 void matchFeaturesBF(cv::Mat& descriptors1, cv::Mat& descriptors2, std::vector<cv::DMatch>& matches, bool crossCheck) {
     cv::BFMatcher matcher(cv::NORM_HAMMING, crossCheck);
@@ -78,17 +80,50 @@ void matchFeaturesGMS(cv::Mat& img1, cv::Mat& img2,
     matches = refinedMatches;
 }
 
+void matchFeaturesReprojection(const cv::Mat& img1, const cv::Mat& img2,
+                              std::vector<cv::KeyPoint>& keypoints1, 
+                              std::vector<cv::KeyPoint>& keypoints2,
+                              std::vector<cv::DMatch>& matches) {
+    if (matches.empty()) return;
+
+    // 计算基础矩阵
+    std::vector<cv::Point2f> points1, points2;
+    for (const auto& match : matches) {
+        points1.push_back(keypoints1[match.queryIdx].pt);
+        points2.push_back(keypoints2[match.trainIdx].pt);
+    }
+
+    std::vector<uchar> inlierMask;
+    cv::Mat F = cv::findFundamentalMat(points1, points2, cv::FM_RANSAC, 3.0, 0.99, inlierMask);
+
+    // 根据重投影误差筛选匹配点
+    std::vector<cv::DMatch> refinedMatches;
+    for (size_t i = 0; i < inlierMask.size(); i++) {
+        if (inlierMask[i]) {
+            refinedMatches.push_back(matches[i]);
+        }
+    }
+
+    matches = refinedMatches;
+}
+
 int main(int argc, char** argv) {
+    if (argc != 5) {
+        std::println("用法: {} <特征点数量> <图片1> <图片2> <保存目录>", argv[0]);
+        return -1;
+    }
+
     // 读取输入图像
-    cv::Mat img1 = cv::imread(argv[1], cv::IMREAD_GRAYSCALE);
-    cv::Mat img2 = cv::imread(argv[2], cv::IMREAD_GRAYSCALE);
+    cv::Mat img1 = cv::imread(argv[2]);
+    cv::Mat img2 = cv::imread(argv[3]);
     if (img1.empty() || img2.empty()) {
         std::cout << "无法加载图像！" << std::endl;
         return -1;
     }
 
+    int size = std::stoi(argv[1]);
     // 初始化ORB特征检测器
-    cv::Ptr<cv::ORB> orb = cv::ORB::create(200);
+    cv::Ptr<cv::ORB> orb = cv::ORB::create(size);
 
     // 检测关键点并计算描述符
     std::vector<cv::KeyPoint> keypoints1, keypoints2;
@@ -125,7 +160,7 @@ int main(int argc, char** argv) {
     matchFeaturesKNN(descriptors1, descriptors2, matches4);
     cv::Mat result4;
     cv::drawMatches(img1, keypoints1, img2, keypoints2, matches4, result4,
-        cv::Scalar(0, 255, 0), cv::Scalar::all(-1),
+        cv::Scalar::all(-1), cv::Scalar::all(-1),
                    std::vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
     
     // 方法5：GMS匹配
@@ -150,9 +185,42 @@ int main(int argc, char** argv) {
 	}
     cv::Mat result6;
     cv::drawMatches(img1, keypoints1, img2, keypoints2, matches_gms, result6,
-        cv::Scalar(0, 255, 0), cv::Scalar::all(-1),
+        cv::Scalar::all(-1), cv::Scalar::all(-1),
                    std::vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
-  
+
+    // 方法7：重投影匹配
+    std::vector<cv::DMatch> matches7 = matches2; // 使用BF匹配结果作为输入
+    matchFeaturesReprojection(img1, img2, keypoints1, keypoints2, matches7);
+    cv::Mat result7;
+    cv::drawMatches(img1, keypoints1, img2, keypoints2, matches7, result7,
+        cv::Scalar::all(-1), cv::Scalar::all(-1),
+                   std::vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS);
+
+    std::string save_dir = argv[4];
+    std::ofstream file(save_dir + "/output.txt");
+    // 在显示窗口之前添加以下代码
+    std::println(file, "特征匹配结果统计:");
+    std::println(file, "检测到的特征点数量: 图像1={}, 图像2={}", keypoints1.size(), keypoints2.size());
+    std::println(file, "BFMatcher (Cross-Check) 匹配数量: {}", matches1.size());
+    std::println(file, "BFMatcher (Non-Cross-Check) 匹配数量: {}", matches2.size());
+    std::println(file, "FLANN Matcher 匹配数量: {}", matches3.size());
+    std::println(file, "KNN Matcher 匹配数量: {}", matches4.size());
+    std::println(file, "GMS Matcher 匹配数量: {}", matches5.size());
+    std::println(file, "GMS Original 匹配数量: {}", matches_gms.size());
+    std::println(file, "Reprojection Matcher 匹配数量: {}", matches7.size());
+    file.close();
+    
+    // 保存匹配结果图片
+    cv::imwrite(save_dir + "/01_bf_cross_check.png", result1);
+    cv::imwrite(save_dir + "/02_bf_no_cross_check.png", result2);
+    cv::imwrite(save_dir + "/03_flann.png", result3);
+    cv::imwrite(save_dir + "/04_knn.png", result4);
+    cv::imwrite(save_dir + "/05_gms.png", result5);
+    cv::imwrite(save_dir + "/06_gms_ori.png", result6);
+    cv::imwrite(save_dir + "/07_reprojection.png", result7);
+
+    std::println("已将结果图片保存至目录: {}", save_dir);
+
     // 显示结果
     cv::namedWindow("BFMatcher (Cross-Check)", cv::WINDOW_NORMAL);
     cv::imshow("BFMatcher (Cross-Check)", result1);
@@ -172,6 +240,11 @@ int main(int argc, char** argv) {
     cv::namedWindow("GMS Ori", cv::WINDOW_NORMAL);
     cv::imshow("GMS Ori", result6);
 
+    cv::namedWindow("Reprojection Matcher", cv::WINDOW_NORMAL);
+    cv::imshow("Reprojection Matcher", result7);
+
+
+    
     cv::waitKey(0);
 
     return 0;
