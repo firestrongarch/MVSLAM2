@@ -59,12 +59,10 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
     }
 
     // 转换到相机坐标系
-    std::vector<cv::Point2d> pts1_cam, pts2_cam;
+    std::vector<cv::Point2f> pts1_cam, pts2_cam;
     for (size_t i = 0; i < pts1.size(); i++) {
-        cv::Point2d p1 = pts1[i];
-        cv::Point2d p2 = pts2[i];
-        pts1_cam.push_back(frame->Pixel2Camera(p1));
-        pts2_cam.push_back(frame->Pixel2Camera(p2));
+        pts1_cam.push_back(frame->Pixel2Camera(pts1[i]));
+        pts2_cam.push_back(frame->Pixel2Camera(pts2[i]));
     }
 
     // 构建投影矩阵：基于当前帧位姿

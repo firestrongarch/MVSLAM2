@@ -39,9 +39,6 @@ void System::Run(Frame::Ptr frame) {
     //     std::println("Reprojection Error: {}", cv::norm(pt_cam - pt_rep));
     // 
     for (auto& kp : frame->kps) {
-        std::cout<<"K: "<<frame->K<<std::endl;
-        std::cout<<"K: "<<frame->K.at<double>(0,0)<<std::endl;
-        std::cout<<"K: "<<frame->K.at<double>(0,2)<<std::endl;
         std::cout<<"pt: "<<kp.pt<<std::endl;
         cv::Point3f p3d = *kp.map_point.lock();
         std::cout<<"p3d: "<<p3d<<std::endl;
