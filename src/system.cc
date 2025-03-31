@@ -28,16 +28,6 @@ void System::Run(Frame::Ptr frame) {
     tracker_->Track(frame);
 
     viewer_->DrawMatches(frame);
-    // viewer_->DrawReprojection(frame);
-    // 打印重投影误差
-    // for (auto& kp : frame->kps) {
-    //     cv::Point2f pt_cam = frame->Pixel2Camera(kp.pt);
-    //     // std::cout<<"pt_cam: "<<pt_cam<<std::endl;
-    //     cv::Point3f p3d = *kp.map_point.lock();
-    //     cv::Point2f pt_rep{p3d.x/p3d.z,p3d.y/p3d.z};
-    //     // std::cout<<"pt_rep: "<<pt_rep<<std::endl;
-    //     std::println("Reprojection Error: {}", cv::norm(pt_cam - pt_rep));
-    // 
     for (auto& kp : frame->kps) {
         std::cout<<"pt: "<<kp.pt<<std::endl;
         cv::Point3f p3d = *kp.map_point.lock();
@@ -48,10 +38,10 @@ void System::Run(Frame::Ptr frame) {
     }
     cv::waitKey(0);
 
-    // frame->T_wc = frame->T_ww * Frame::last_frame_->T_wc;
-    // tracker_->Pnp(frame);
-    // frame->T_ww = frame->T_wc * Frame::last_frame_->T_wc.inv();
-    // viewer_->AddTrajectoryPose(frame->T_wc);
+    frame->T_wc = frame->T_ww * Frame::last_frame_->T_wc;
+    tracker_->Pnp(frame);
+    frame->T_ww = frame->T_wc * Frame::last_frame_->T_wc.inv();
+    viewer_->AddTrajectoryPose(frame->T_wc);
 
     // 补充特征点
     if (frame->kps.size() < 50) {

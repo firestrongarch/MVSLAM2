@@ -160,12 +160,12 @@ void Tracker::Pnp(Frame::Ptr frame) {
     cv::Rodrigues(R, rvec);  // 将旋转矩阵转换为旋转向量
     std::vector<int> inliers;
     std::vector<cv::Point3d> points3d;
-    std::vector<cv::Point2d> points2d;
+    std::vector<cv::Point2f> points2f;
 
     for (const auto& kp : frame->kps) {
         cv::Point3d p3d = *kp.map_point.lock();
         points3d.push_back(p3d);
-        points2d.push_back(kp.pt);
+        points2f.push_back(kp.pt);
     }
     // cv::solvePnP(
     //     points3d,
@@ -178,7 +178,7 @@ void Tracker::Pnp(Frame::Ptr frame) {
     // );
     cv::solvePnPRansac(
         points3d,
-        points2d,
+        points2f,
         frame->K,
         cv::Mat(),
         rvec,
@@ -187,8 +187,7 @@ void Tracker::Pnp(Frame::Ptr frame) {
         100, // max iterations
         8.0, // reprojection error
         0.95, // confidence
-        inliers,
-        cv::SOLVEPNP_EPNP
+        inliers
     );
     cv::Rodrigues(rvec, R);
     cv::Mat T_cw_new = cv::Mat::eye(4, 4, CV_64F);
