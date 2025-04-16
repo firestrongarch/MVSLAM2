@@ -174,15 +174,6 @@ void Tracker::Pnp(Frame::Ptr frame)
         points3d.push_back(p3d);
         points2f.push_back(kp.pt);
     }
-    // cv::solvePnP(
-    //     points3d,
-    //     points2d,
-    //     frame->K,
-    //     cv::Mat(),
-    //     rvec,
-    //     tvec,
-    //     true
-    // );
     cv::solvePnPRansac(
         points3d,
         points2f,
@@ -200,6 +191,13 @@ void Tracker::Pnp(Frame::Ptr frame)
     R.copyTo(T_cw_new(cv::Rect(0, 0, 3, 3)));
     tvec.copyTo(T_cw_new(cv::Rect(3, 0, 1, 3)));
     frame->T_wc = T_cw_new.inv();
+
+    // 根据inliers筛选特征点
+    std::vector<KeyPoint> filtered_kps;
+    for (auto idx : inliers) {
+        filtered_kps.push_back(frame->kps[idx]);
+    }
+    frame->kps = filtered_kps;
 }
 
 }
