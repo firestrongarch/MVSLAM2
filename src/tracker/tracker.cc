@@ -69,10 +69,11 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map)
 
     // 构建投影矩阵：基于当前帧位姿
     // 第一个相机的投影矩阵：从frame->pose提取前3行
-    cv::Mat P1 = frame->T_wc(cv::Range(0, 3), cv::Range::all());
+    // 第一个相机的投影矩阵：3x4单位矩阵
+    cv::Mat P1 = cv::Mat::eye(3, 4, CV_32F);
 
-    // 第二个相机的投影矩阵：T01.inv * frame->pose，取前3行
-    cv::Mat P2 = (frame->T_01.inv() * frame->T_wc)(cv::Range(0, 3), cv::Range::all());
+    // 第二个相机的投影矩阵：右目相对左目的变换
+    cv::Mat P2 = frame->T_01.inv()(cv::Range(0, 3), cv::Range::all());
 
     // 三角化
     cv::Mat points4d;
@@ -103,7 +104,10 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map)
         }
 
         // 只有当3D点有效时，才保存对应的2D点
-        MapPoint::Ptr map_point = std::make_shared<MapPoint>(p3d, MapPoint::next_id++);
+        cv::Mat p3d_mat = (cv::Mat_<double>(4, 1) << p3d.x, p3d.y, p3d.z, 1);
+        cv::Mat p3d_world_mat = frame->T_wc * p3d_mat;
+        cv::Point3d p3d_world(p3d_world_mat.at<double>(0), p3d_world_mat.at<double>(1), p3d_world_mat.at<double>(2));
+        MapPoint::Ptr map_point = std::make_shared<MapPoint>(p3d_world, MapPoint::next_id++);
         KeyPoint kp = kps1_good[i];
         kp.map_point = map_point;
         kp.des = des1_good.row(i);
