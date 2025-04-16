@@ -8,10 +8,14 @@ class MapPoint : public cv::Point3d {
 public:
     using Ptr = std::shared_ptr<MapPoint>;
     MapPoint() = delete;
-    MapPoint(const cv::Point3d& p , const int& id) : cv::Point3d(p), id(id) {}
+    MapPoint(const cv::Point3d& p, const int& id)
+        : cv::Point3d(p)
+        , id(id)
+    {
+    }
 
     const int id;
-    static int next_id;
+    inline static int next_id = 0;
     bool is_outlier = false;
 };
 
@@ -19,13 +23,15 @@ class KeyPoint : public cv::KeyPoint {
 public:
     using Ptr = std::shared_ptr<KeyPoint>;
     KeyPoint() = default;
-    KeyPoint(const cv::KeyPoint& kp) : cv::KeyPoint(kp) {}
-
+    KeyPoint(const cv::KeyPoint& kp)
+        : cv::KeyPoint(kp)
+    {
+    }
 
     std::weak_ptr<MapPoint> map_point;
     cv::Mat des;
     cv::Point2f match;
-    
+
     bool is_outlier = false;
 };
 
@@ -42,10 +48,10 @@ struct Frame {
     cv::Mat T_wc = cv::Mat::eye(4, 4, CV_64F);
     cv::Mat T_ww = cv::Mat::eye(4, 4, CV_64F);
 
-    static Ptr last_frame_;
-    static Ptr kf;
-    static cv::Mat K;
-    static cv::Mat T_01;
+    inline static Ptr last_frame_;
+    inline static Ptr kf;
+    inline static cv::Mat K;
+    inline static cv::Mat T_01;
 
     static cv::Point2d Pixel2Camera(const cv::Point2d& p2d);
     static cv::Point2d Camera2Pixel(const cv::Point3d& p3d);

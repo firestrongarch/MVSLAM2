@@ -6,21 +6,23 @@
 
 namespace MVSLAM2 {
 
-void Tracker::Extract2d(Frame::Ptr frame) {
+void Tracker::Extract2d(Frame::Ptr frame)
+{
     auto detector = cv::ORB::create(2000);
     // detector->detectAndCompute(frame.left_image_, cv::noArray(), frame.left_kps_, frame.left_des_);
 }
 
-void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
+void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map)
+{
 
     // 屏蔽已有特征点的区域
     cv::Mat mask(frame->left_image_.size(), CV_8UC1, cv::Scalar::all(255));
-    for (const auto &feat : frame->kps){
+    for (const auto& feat : frame->kps) {
         cv::rectangle(mask,
-                    feat.pt - cv::Point2f(10, 10),
-                    feat.pt + cv::Point2f(10, 10),
-                    0,
-                    cv::FILLED);
+            feat.pt - cv::Point2f(10, 10),
+            feat.pt + cv::Point2f(10, 10),
+            0,
+            cv::FILLED);
     }
 
     std::vector<cv::KeyPoint> kps1, kps2;
@@ -34,7 +36,7 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
     matcher->match(des1, des2, matches);
 
     // 匹配点对筛选
-    auto min_max = std::minmax_element(matches.begin(), matches.end(), 
+    auto min_max = std::minmax_element(matches.begin(), matches.end(),
         [](const cv::DMatch& a, const cv::DMatch& b) {
             return a.distance < b.distance;
         });
@@ -67,10 +69,10 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
 
     // 构建投影矩阵：基于当前帧位姿
     // 第一个相机的投影矩阵：从frame->pose提取前3行
-    cv::Mat P1 = frame->T_wc(cv::Range(0,3), cv::Range::all());
-    
+    cv::Mat P1 = frame->T_wc(cv::Range(0, 3), cv::Range::all());
+
     // 第二个相机的投影矩阵：T01.inv * frame->pose，取前3行
-    cv::Mat P2 = (frame->T_01.inv() * frame->T_wc)(cv::Range(0,3), cv::Range::all());
+    cv::Mat P2 = (frame->T_01.inv() * frame->T_wc)(cv::Range(0, 3), cv::Range::all());
 
     // 三角化
     cv::Mat points4d;
@@ -78,24 +80,23 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
 
     // 转换成非齐次坐标并进行有效性检查
     for (int i = 0; i < points4d.cols; i++) {
-        double w = points4d.at<float>(3,i);
+        double w = points4d.at<float>(3, i);
 
         cv::Point3d p3d(
-            points4d.at<float>(0,i) / w,
-            points4d.at<float>(1,i) / w,
-            points4d.at<float>(2,i) / w
-        );
-        
+            points4d.at<float>(0, i) / w,
+            points4d.at<float>(1, i) / w,
+            points4d.at<float>(2, i) / w);
+
         // 检查NaN值
         if (std::isnan(p3d.x) || std::isnan(p3d.y) || std::isnan(p3d.z)) {
             continue;
         }
-        
+
         // 检查深度是否在合理范围内 (0.1米到100米)
         if (p3d.z <= 0.1 || p3d.z > 100) {
             continue;
         }
-        
+
         // 检查坐标值是否过大
         if (std::abs(p3d.x) > 100 || std::abs(p3d.y) > 100) {
             continue;
@@ -107,12 +108,13 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map) {
         kp.map_point = map_point;
         kp.des = des1_good.row(i);
         frame->kps.push_back(kp);
-        
+
         map->InsertMapPoint(map_point);
     }
 }
 
-void Tracker::Track(Frame::Ptr frame) {
+void Tracker::Track(Frame::Ptr frame)
+{
     // 准备上一帧的特征点和描述子
     auto detector = cv::ORB::create(2000);
     // 检测当前帧的特征点
@@ -123,12 +125,12 @@ void Tracker::Track(Frame::Ptr frame) {
         kps1.push_back(kp);
     }
     detector->detectAndCompute(frame->left_image_, cv::noArray(), kps2, des2);
-    
+
     cv::Ptr<cv::DescriptorMatcher> matcher = cv::DescriptorMatcher::create("BruteForce-Hamming");
     std::vector<cv::DMatch> matches;
     matcher->match(des1, des2, matches);
     // 匹配点对筛选
-    auto min_max = std::minmax_element(matches.begin(), matches.end(), 
+    auto min_max = std::minmax_element(matches.begin(), matches.end(),
         [](const cv::DMatch& a, const cv::DMatch& b) {
             return a.distance < b.distance;
         });
@@ -152,12 +154,13 @@ void Tracker::Track(Frame::Ptr frame) {
     }
 }
 
-void Tracker::Pnp(Frame::Ptr frame) {
+void Tracker::Pnp(Frame::Ptr frame)
+{
     cv::Mat T_cw = frame->T_wc.inv();
-    cv::Mat R = T_cw(cv::Range(0,3), cv::Range(0,3));
-    cv::Mat tvec = T_cw(cv::Range(0,3), cv::Range(3,4));
+    cv::Mat R = T_cw(cv::Range(0, 3), cv::Range(0, 3));
+    cv::Mat tvec = T_cw(cv::Range(0, 3), cv::Range(3, 4));
     cv::Mat rvec;
-    cv::Rodrigues(R, rvec);  // 将旋转矩阵转换为旋转向量
+    cv::Rodrigues(R, rvec); // 将旋转矩阵转换为旋转向量
     std::vector<int> inliers;
     std::vector<cv::Point3d> points3d;
     std::vector<cv::Point2f> points2f;
@@ -186,9 +189,8 @@ void Tracker::Pnp(Frame::Ptr frame) {
         true,
         100, // max iterations
         8.0, // reprojection error
-        0.95, // confidence
-        inliers
-    );
+        0.98, // confidence
+        inliers);
     cv::Rodrigues(rvec, R);
     cv::Mat T_cw_new = cv::Mat::eye(4, 4, CV_64F);
     R.copyTo(T_cw_new(cv::Rect(0, 0, 3, 3)));
