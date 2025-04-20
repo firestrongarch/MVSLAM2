@@ -184,7 +184,7 @@ void Odometry::Pnp(Frame::Ptr frame)
         true,
         100, // max iterations
         8.0, // reprojection error
-        0.98, // confidence
+        0.99, // confidence
         inliers);
     cv::Rodrigues(rvec, R);
     cv::Mat T_cw_new = cv::Mat::eye(4, 4, CV_64F);
