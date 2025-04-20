@@ -14,7 +14,7 @@ void System::Run(Frame::Ptr frame)
 {
 
     if (Frame::last_frame_ == nullptr) {
-        tracker_->Extract3d(frame, map_);
+        odom_->Extract3d(frame, map_);
         Frame::kf = frame;
         Frame::last_frame_ = frame;
 
@@ -26,7 +26,7 @@ void System::Run(Frame::Ptr frame)
         return;
     }
 
-    tracker_->Track(frame);
+    odom_->Track(frame);
 
     viewer_->DrawMatches(frame);
     // for (auto& kp : frame->kps) {
@@ -37,17 +37,16 @@ void System::Run(Frame::Ptr frame)
     //     std::cout << "pt_rep: " << pt_rep << std::endl;
     //     std::println("Reprojection Error: {}", cv::norm(pt_rep - kp.pt));
     // }
-    cv::waitKey(0);
 
     frame->T_wc = frame->T_ww * Frame::last_frame_->T_wc;
-    tracker_->Pnp(frame);
+    odom_->Pnp(frame);
     frame->T_ww = frame->T_wc * Frame::last_frame_->T_wc.inv();
     viewer_->AddTrajectoryPose(frame->T_wc);
 
     // 补充特征点
     if (frame->kps.size() < 50) {
         std::cout << "补充特征点" << std::endl;
-        tracker_->Extract3d(frame, map_);
+        odom_->Extract3d(frame, map_);
     }
 
     std::println("Frame ID: {}, Timestamp: {}", frame->id, frame->timestamp_);

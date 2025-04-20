@@ -1,4 +1,4 @@
-#include "tracker/ceres_tracker.h"
+#include "odometry/ceres_odometry.h"
 #include "opencv2/opencv.hpp"
 #include <opencv2/core/quaternion.hpp>
 
@@ -43,7 +43,6 @@ namespace MVSLAM2 {
 //         }
 //     }
 
-
 //     std::vector<cv::Point2d> pts1, pts2;
 //     for (const auto& match : good_matches) {
 //         pts1.push_back(kps1[match.queryIdx].pt);
@@ -76,7 +75,7 @@ namespace MVSLAM2 {
 
 //         // 配置Ceres问题
 //         ceres::Problem problem;
-        
+
 //         // 添加左右相机的观测
 //         problem.AddResidualBlock(
 //             TriangulationError::Create(pts1_cam[i], P1),
@@ -100,7 +99,7 @@ namespace MVSLAM2 {
 
 //         // 检查优化结果
 //         cv::Point3d p3d(point[0], point[1], point[2]);
-        
+
 //         // 有效性检查
 //         if (std::isnan(p3d.x) || std::isnan(p3d.y) || std::isnan(p3d.z) ||
 //             p3d.z <= 0.1 || p3d.z > 100 ||
@@ -114,24 +113,25 @@ namespace MVSLAM2 {
 //         kp.map_point = map_point;
 //         kp.pt = pts1[i];
 //         frame->left_kps_.push_back(kp);
-        
+
 //         map->InsertMapPoint(map_point);
 //     }
 // }
 
-void CeresTracker::Pnp(Frame::Ptr frame) {
+void CeresOdom::Pnp(Frame::Ptr frame)
+{
     if (!Frame::last_frame_ || frame->kps.empty()) {
         return;
     }
 
     // 初始化位姿估计：将旋转矩阵转换为四元数
-    cv::Mat R = Frame::last_frame_->T_wc(cv::Range(0,3), cv::Range(0,3));
-    cv::Mat tvec = Frame::last_frame_->T_wc(cv::Range(0,3), cv::Range(3,4));
-    
+    cv::Mat R = Frame::last_frame_->T_wc(cv::Range(0, 3), cv::Range(0, 3));
+    cv::Mat tvec = Frame::last_frame_->T_wc(cv::Range(0, 3), cv::Range(3, 4));
+
     // 使用OpenCV的四元数类
     cv::Quatd q = cv::Quatd::createFromRotMat(R);
-    
-    double pose[7];  // [qw, qx, qy, qz, tx, ty, tz]
+
+    double pose[7]; // [qw, qx, qy, qz, tx, ty, tz]
     pose[0] = q.w;
     pose[1] = q.x;
     pose[2] = q.y;
@@ -145,7 +145,7 @@ void CeresTracker::Pnp(Frame::Ptr frame) {
 
     // 先添加一个参数块，然后再设置流形
     problem.AddParameterBlock(pose, 7);
-    
+
     // 设置流形
     auto pose_manifold = new ceres::ProductManifold<ceres::QuaternionManifold, ceres::EuclideanManifold<3>>();
     problem.SetManifold(pose, pose_manifold);
@@ -153,20 +153,18 @@ void CeresTracker::Pnp(Frame::Ptr frame) {
     // 构建有效特征点索引映射
     std::vector<size_t> valid_indices;
     std::vector<ceres::ResidualBlockId> residual_block_ids;
-    
+
     for (size_t i = 0; i < frame->kps.size(); i++) {
         if (auto mp = frame->kps[i].map_point.lock()) {
             valid_indices.push_back(i);
             cv::Point3d p3d = *mp;
-            ceres::CostFunction* cost_function = 
-                ReprojectionErrorQuat::Create(frame->kps[i].pt, p3d, frame->K);
+            ceres::CostFunction* cost_function = ReprojectionErrorQuat::Create(frame->kps[i].pt, p3d, frame->K);
             residual_block_ids.push_back(
                 problem.AddResidualBlock(
                     cost_function,
                     new ceres::HuberLoss(5.9915),
-                    pose  // 现在pose包含了四元数和平移向量
-                )
-            );
+                    pose // 现在pose包含了四元数和平移向量
+                    ));
         }
     }
 
@@ -179,15 +177,15 @@ void CeresTracker::Pnp(Frame::Ptr frame) {
     int cnt_outliers = 0;
     int num_iterations = 4;
     std::vector<bool> outlier_flags(valid_indices.size(), false);
-    
+
     for (int iter = 0; iter < num_iterations; iter++) {
         // 配置求解器
         ceres::Solver::Options options;
-        options.linear_solver_type = ceres::DENSE_NORMAL_CHOLESKY;  // 改用更稳定的求解器
+        options.linear_solver_type = ceres::DENSE_NORMAL_CHOLESKY; // 改用更稳定的求解器
         options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
         options.minimizer_progress_to_stdout = false;
         options.max_num_iterations = 10;
-        options.function_tolerance = 1e-4;     // 添加收敛条件
+        options.function_tolerance = 1e-4; // 添加收敛条件
         options.gradient_tolerance = 1e-4;
         options.parameter_tolerance = 1e-4;
 
@@ -212,23 +210,23 @@ void CeresTracker::Pnp(Frame::Ptr frame) {
 
             double chi2 = residuals[0] * residuals[0] + residuals[1] * residuals[1];
             outlier_flags[i] = (chi2 > chi2_th);
-            if (outlier_flags[i]) cnt_outliers++;
+            if (outlier_flags[i])
+                cnt_outliers++;
 
             // 倒数第二轮时移除鲁棒核函数
             if (iter == num_iterations - 2) {
                 auto mp = frame->kps[valid_indices[i]].map_point.lock();
-                if (!mp) continue;
-                
+                if (!mp)
+                    continue;
+
                 problem.RemoveResidualBlock(residual_block_ids[i]);
                 residual_block_ids[i] = problem.AddResidualBlock(
                     ReprojectionErrorQuat::Create(
-                        frame->kps[valid_indices[i]].pt, 
-                        *mp, 
-                        frame->K
-                    ),
+                        frame->kps[valid_indices[i]].pt,
+                        *mp,
+                        frame->K),
                     nullptr,
-                    pose
-                );
+                    pose);
             }
         }
     }
@@ -238,7 +236,7 @@ void CeresTracker::Pnp(Frame::Ptr frame) {
     cv::Matx33d rot_mat = final_q.toRotMat3x3();
     // 确保正确转换回cv::Mat
     R = cv::Mat(rot_mat);
-    cv::Mat optimized_tvec = (cv::Mat_<double>(3,1) << pose[4], pose[5], pose[6]);
+    cv::Mat optimized_tvec = (cv::Mat_<double>(3, 1) << pose[4], pose[5], pose[6]);
 
     cv::Mat optimized_pose = cv::Mat::eye(4, 4, CV_64F);
     R.copyTo(optimized_pose(cv::Rect(0, 0, 3, 3)));

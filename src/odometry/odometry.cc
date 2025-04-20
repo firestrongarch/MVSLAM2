@@ -1,4 +1,4 @@
-#include "tracker/tracker.h"
+#include "odometry/odometry.h"
 #include <ceres/manifold.h>
 #include <opencv2/calib3d.hpp>
 #include <opencv2/opencv.hpp>
@@ -6,13 +6,13 @@
 
 namespace MVSLAM2 {
 
-void Tracker::Extract2d(Frame::Ptr frame)
+void Odometry::Extract2d(Frame::Ptr frame)
 {
     auto detector = cv::ORB::create(2000);
     // detector->detectAndCompute(frame.left_image_, cv::noArray(), frame.left_kps_, frame.left_des_);
 }
 
-void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map)
+void Odometry::Extract3d(Frame::Ptr frame, Map::Ptr map)
 {
 
     // 屏蔽已有特征点的区域
@@ -117,7 +117,7 @@ void Tracker::Extract3d(Frame::Ptr frame, Map::Ptr map)
     }
 }
 
-void Tracker::Track(Frame::Ptr frame)
+void Odometry::Track(Frame::Ptr frame)
 {
     // 准备上一帧的特征点和描述子
     auto detector = cv::ORB::create(2000);
@@ -158,7 +158,7 @@ void Tracker::Track(Frame::Ptr frame)
     }
 }
 
-void Tracker::Pnp(Frame::Ptr frame)
+void Odometry::Pnp(Frame::Ptr frame)
 {
     cv::Mat T_cw = frame->T_wc.inv();
     cv::Mat R = T_cw(cv::Range(0, 3), cv::Range(0, 3));
