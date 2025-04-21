@@ -17,7 +17,7 @@ public:
         Frame::K = K;
         Frame::T_01 = T_01_;
         viewer_ = std::make_shared<Viewer>();
-        viewer_thread_ = std::thread(&Viewer::ShowWithViz, viewer_);
+        viewer_thread_ = std::thread(&Viewer::Run, viewer_);
     }
     ~System() = default;
 

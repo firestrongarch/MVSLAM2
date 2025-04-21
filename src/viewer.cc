@@ -3,6 +3,7 @@
 #include <opencv2/core/types.hpp>
 #include <opencv2/viz.hpp>
 #include <print>
+#include <thread>
 
 namespace MVSLAM2 {
 
@@ -11,7 +12,7 @@ namespace MVSLAM2 {
 void Viewer::ShowWithViz()
 {
     // 创建3D可视化窗口
-    // cv::viz::Viz3d viz_window("Visual Odometry");
+    cv::viz::Viz3d viz_window("Visual Odometry");
 
     // 设置窗口背景颜色和初始相机视角
     viz_window.setBackgroundColor(cv::viz::Color::white());
@@ -19,33 +20,25 @@ void Viewer::ShowWithViz()
     // 创建坐标系部件
     viz_window.showWidget("Coordinate", cv::viz::WCoordinateSystem());
 
-    // 主循环
-    while (!viz_window.wasStopped()) {
-        // viz_window.setViewerPose(cv::Affine3d(
-        //     cv::Mat::eye(3, 3, CV_64F),
-        //     cv::Vec3d(x, y, z)));
+    // 设置初始相机视角：从 (0, 1000, 0) 观察原点，向下看
+    cv::Affine3d cam_pose = cv::viz::makeCameraPose(
+        cv::Vec3d(0, 1000, 0), // camera position
+        cv::Vec3d(0, 0, 0), // look at
+        cv::Vec3d(0, 0, -1) // up vector (向下)
+    );
+    viz_window.setViewerPose(cam_pose);
 
-        // 绘制轨迹
-        if (!traj_VO_.empty()) {
-            std::vector<cv::Point3d> points;
-            for (const auto& p : traj_VO_) {
-                points.emplace_back(p[0], p[1], p[2]);
-            }
-
-            cv::viz::WCloud cloud_widget(points, cv::viz::Color::blue());
-            viz_window.showWidget("Trajectory_Points", cloud_widget);
-
-            cv::viz::WPolyLine trajectory_widget(points, cv::viz::Color::red());
+    std::thread t1([&]() {
+        while (!viz_window.wasStopped()) {
+            // 创建轨迹线部件
+            viz_window.removeAllWidgets();
+            cv::viz::WPolyLine trajectory_widget(traj_VO_, cv::viz::Color::red());
             viz_window.showWidget("Trajectory_Lines", trajectory_widget);
-
-            cv::viz::WCameraPosition cpw_curr(0.5);
-            viz_window.showWidget("Camera", cpw_curr,
-                cv::Affine3d(cv::Mat::eye(3, 3, CV_64F),
-                    cv::Vec3d(points.back().x, points.back().y, points.back().z)));
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
+    });
 
-        viz_window.spinOnce(30, true);
-    }
+    viz_window.spin();
 }
 
 void Viewer::Run()

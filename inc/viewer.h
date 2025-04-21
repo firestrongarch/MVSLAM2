@@ -9,7 +9,7 @@ namespace MVSLAM2 {
 class Viewer {
 public:
     using Ptr = std::shared_ptr<Viewer>;
-    Viewer() = default;
+    // Viewer() = default;
     void ShowWithViz();
     void Run();
     void AddTrajectoryPose(const cv::Mat& pose);
@@ -26,7 +26,6 @@ private:
     std::vector<cv::Vec3d> traj_VO_;
     std::vector<cv::Mat> poses_; /// pose
     std::vector<cv::Vec3d> point_cloud_;
-    cv::viz::Viz3d viz_window { "Visual Odometry" };
     // Map::Ptr map_;
 };
 
